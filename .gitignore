@@ -42,3 +42,12 @@ vignettes/*.pdf
 
 *.htm
 *.html
+
+# Excel files
+
+*.xls
+*.xlsx
+
+#PDF files
+
+*.pdf

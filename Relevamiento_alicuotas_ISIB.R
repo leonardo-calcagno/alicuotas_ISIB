@@ -54,7 +54,7 @@ df_mendoza_22<-alicuotas_ERREPAR("mendoza_2022")
 df_misiones_22<-alicuotas_ERREPAR("misiones_2022")
 df_neuquen_22<-alicuotas_ERREPAR("neuquen_2022")
 df_rio_negro_22<-alicuotas_ERREPAR("rio_negro_2022")
-df_salta_22<-alicuotas_ERREPAR("salta_2022")
+df_salta_22<-alicuotas_ERREPAR("salta_2_2022")
 df_san_juan_22<-alicuotas_ERREPAR("san_juan_2022")
 df_san_luis_22<-alicuotas_ERREPAR("san_luis_2022")
 df_santa_cruz_22<-alicuotas_ERREPAR("santa_cruz_2022")
@@ -63,13 +63,14 @@ df_santiago_del_estero_22<-alicuotas_ERREPAR("santiago_del_estero_2022")
 df_TDF_22<-alicuotas_ERREPAR("tdf_2022")
 df_tucuman_22<-alicuotas_ERREPAR("tucuman_2022")
 
-
-
-
-
-gs4_auth() #Connection to google account
+gs4_auth() #Conección a la cuenta google
 
 id_carpeta<-drive_get("Relevamiento_alicuotas")
+id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
+df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
+
+##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES ------
+
 gs4_create(name="buenos_aires_22",sheets=df_buenos_aires_22)
 drive_mv(file="buenos_aires_22",path=id_carpeta)
 
@@ -118,6 +119,11 @@ drive_mv(file="neuquen_22",path=id_carpeta)
 gs4_create(name="rio_negro_22",sheets=df_rio_negro_22)
 drive_mv(file="rio_negro_22",path=id_carpeta)
 
+
+gs4_create(name="salta_anexo1_22",sheets=df_salta_22)
+drive_mv(file="salta_anexo1_22",path=id_carpeta)
+
+
 gs4_create(name="san_juan_22",sheets=df_san_juan_22)
 drive_mv(file="san_juan_22",path=id_carpeta)
 
@@ -132,6 +138,8 @@ drive_mv(file="tdf_22",path=id_carpeta)
 
 gs4_create(name="tucuman_22",sheets=df_tucuman_22)
 drive_mv(file="tucuman_22",path=id_carpeta)
+
+###### Los casos de Salta y Santiago del Estero, se consiguieron cuadros con alícuotas 
 
 
 id_caba_22<-drive_get("CABA_alícuota22")
