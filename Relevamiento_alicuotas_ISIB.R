@@ -66,8 +66,20 @@ df_tucuman_22<-alicuotas_ERREPAR("tucuman_2022")
 gs4_auth() #Conección a la cuenta google
 
 id_carpeta<-drive_get("Relevamiento_alicuotas")
+
+##Para Santiago del Estero, obtenemos un pdf de la Dirección General de Rentas, con código CUACM. 
 id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
 df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
+#Por Art. 2 de la Ley 7.339, la venta en comisión y/o directa de automotores nuevos está impuesta al 10%. Se corrige la alícuota en la
+    #tabla correspondiente
+#Para las demás posiciones, nos fiamos a la fuente informada por ERREPAR, sin entrar en más detalles.
+df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
+  mutate(ALICUOTA=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), 10, #Venta de automotores nuevos
+                         ALICUOTA), 
+         fuente=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), "Art. 2 Ley 7.339", 
+                       "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
+         )
+head(df_santiago_del_estero_22)
 
 ##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES ------
 
