@@ -99,10 +99,8 @@ df_salta_anexo1_22<-df_salta_anexo1_22%>%
                              )
   )%>%
   subset(NAES_faltante==0)%>%
-  select(-c(NAES_faltante))
-view(df_salta_anexo1_22)
-
-
+  select(-c(NAES_faltante))%>%
+  mutate(fuente="Anexo I Res. Gen. 16/2022 DGR Salta")
 
 ##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES ------
 
@@ -154,8 +152,7 @@ drive_mv(file="neuquen_22",path=id_carpeta)
 gs4_create(name="rio_negro_22",sheets=df_rio_negro_22)
 drive_mv(file="rio_negro_22",path=id_carpeta)
 
-
-gs4_create(name="salta_anexo1_22",sheets=df_salta_22)
+gs4_create(name="salta_anexo1_22",sheets=df_salta_anexo1_22)
 drive_mv(file="salta_anexo1_22",path=id_carpeta)
 
 
