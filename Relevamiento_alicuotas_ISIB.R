@@ -9,6 +9,7 @@ library(RCurl)
 library(rlist)
 library(httr)
 library(plyr)
+library(dplyr)
 library(googlesheets4)
 library(googledrive)
 
@@ -43,7 +44,7 @@ df_catamarca_22<-alicuotas_ERREPAR("catamarca_2022")
 df_CABA_22<-alicuotas_ERREPAR("CABA_2022")
 df_cordoba_22<-alicuotas_ERREPAR("cordoba_2022")
 df_corrientes_22<-alicuotas_ERREPAR("corrientes_2022")
-df_chaco_22<-alicuotas_ERREPAR("chaco_2_2022")
+df_chaco_22<-alicuotas_ERREPAR("chaco_2_2022") #Tabla únicamente para contribuyentes locales
 df_chubut_22<-alicuotas_ERREPAR("chubut_2022")
 df_entre_rios_22<-alicuotas_ERREPAR("entre_rios_2_2022")
 df_formosa_22<-alicuotas_ERREPAR("formosa_2022")
@@ -66,7 +67,7 @@ df_tucuman_22<-alicuotas_ERREPAR("tucuman_2022")
 gs4_auth() #Conección a la cuenta google
 
 id_carpeta<-drive_get("Relevamiento_alicuotas")
-
+####Casos particulares ------------
 ##Para Santiago del Estero, obtenemos un pdf de la Dirección General de Rentas, con código CUACM. 
 id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
 df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
@@ -79,7 +80,29 @@ df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
          fuente=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), "Art. 2 Ley 7.339", 
                        "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
          )
-head(df_santiago_del_estero_22)
+rm(id_santiago_del_estero)
+
+
+
+##Para Salta, hay dos anexos tarifarios: contribuyentes locales (anexo I) y de convenio multilateral (anexo II)
+    #Para contribuyente local, la tabla es relativamente simple y está en ERREPAR; para convenio multilateral, es un pdf de 219 
+    #páginas que ni siquiera está con texto seleccionable. Dejamos por lo tanto este anexo para una siguiente etapa
+
+df_salta_anexo1_22<-df_salta_22[,-c(2,3)]%>%  #Nivel de 1 y 2 dígitos que no nos interesan
+  subset(!(is.na(V5)&is.na(V6)&is.na(V7)&is.na(V8)&is.na(V9)&is.na(V10))) #Líneas sin alícuotas informadas
+names(df_salta_anexo1_22)<-c("cuadros","codigo_NAES","actividad","general_IVA","general_monotributo","especial","exentos","profesionales_uni","consumidor_final")
+df_salta_anexo1_22<-df_salta_anexo1_22[-1,]
+df_salta_anexo1_22<-df_salta_anexo1_22%>%
+  mutate(NAES_faltante=ifelse(substr(codigo_NAES,start=1,stop=1) %in% c("0","1","2","3","4","5","6","7","8","9"),0,
+                              ifelse(substr(codigo_NAES,start=1,stop=1)=="O", 0, #Algunos códigos empiezan con "Obs:"
+                                    1)
+                             )
+  )%>%
+  subset(NAES_faltante==0)%>%
+  select(-c(NAES_faltante))
+view(df_salta_anexo1_22)
+
+
 
 ##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES ------
 
@@ -151,8 +174,9 @@ drive_mv(file="tdf_22",path=id_carpeta)
 gs4_create(name="tucuman_22",sheets=df_tucuman_22)
 drive_mv(file="tucuman_22",path=id_carpeta)
 
-###### Los casos de Salta y Santiago del Estero, se consiguieron cuadros con alícuotas 
 
+##### Resolvemos algunos casos simples con R ------
+##Catamarca
 
-id_caba_22<-drive_get("CABA_alícuota22")
-test<-read_sheet(id_caba_22)
+#df_catamarca_22<-df_catamarca_22%>%
+  #SEGUIR AQUI
