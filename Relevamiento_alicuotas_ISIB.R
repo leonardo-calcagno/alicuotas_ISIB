@@ -8,7 +8,6 @@ library(xml2)
 library(RCurl)
 library(rlist)
 library(httr)
-library(plyr)
 library(dplyr)
 library(googlesheets4)
 library(googledrive)
@@ -36,8 +35,8 @@ alicuotas_ERREPAR<- function(input){
   
   #tables<-lapply(tables,function(x) dplyr::mutate(x,mergeid=row_number())
   #)
-  output<-ldply(tables,data.frame,.id="cuadro")
-  
+  output<-plyr::ldply(tables,data.frame,.id="cuadro") #Esto concatena todas las tablas en un solo df
+  #Es importante no cargar la librería plyr, porque entra en conflicto con dplyr para, por ejemplo, rename()
 }
 df_buenos_aires_22<-alicuotas_ERREPAR("buenos_aires_2022")
 df_catamarca_22<-alicuotas_ERREPAR("catamarca_2022")
@@ -172,8 +171,23 @@ gs4_create(name="tucuman_22",sheets=df_tucuman_22)
 drive_mv(file="tucuman_22",path=id_carpeta)
 
 
-##### Resolvemos algunos casos simples con R ------
-##Catamarca
 
-#df_catamarca_22<-df_catamarca_22%>%
-  #SEGUIR AQUI
+######## Importamos los cuadros modificados------
+id_CABA<-drive_get("CABA_alícuota22")
+freq_CABA_22<-read_sheet(ss=id_CABA)%>%
+  group_by(V1)%>%
+  tally()%>%
+  ungroup()%>%
+  rename(apariciones=n)
+
+freq_CABA_22<-rename(freq_CABA_22,apariciones=n)
+head(freq_CABA_22)
+
+
+repetidos_CABA_22<-read_sheet(ss=id_CABA)%>%
+  left_join(freq_CABA_22)%>%
+  subset(apariciones>1)
+head(repetidos_CABA_22)
+head(df_CABA_22)
+view(df_CABA_22)
+
