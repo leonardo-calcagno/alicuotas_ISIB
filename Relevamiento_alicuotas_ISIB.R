@@ -15,6 +15,46 @@ library(googledrive)
 rm(list=ls())
 gc()
 setwd("C:/Users/Ministerio/Documents/alicuotas_ISIB/")
+
+
+
+###Importación de las tablas de equivalencia AFIP - NAES - CUACM -------------
+if(!file.exists("Bases_externas")) {
+  dir.create("Bases_externas")
+}
+
+download.file(
+  url = "https://www.ca.gov.ar/descargar/naes_anexos/NAES_Anexos%20I-II%20y%20III_RG_12-2017.xlsx", 
+  destfile = "Bases_externas/NAES_CUACM.xlsx", mode='wb'
+)
+
+NAES_descripcion<- read_excel("Bases_externas/NAES_CUACM.xlsx", 
+                              sheet = "AnexoI_NAES", skip=2)
+
+CUACM_NAES<-read_excel("Bases_externas/NAES_CUACM.xlsx", 
+                       sheet = "AnexoII_Equivalencia CUACM-NAES", skip=2)
+
+AFIP_NAES<-read_excel("Bases_externas/NAES_CUACM.xlsx", 
+                      sheet = "AnexoIII_Equivalencia AFIP-NAES", skip=2)
+
+names(NAES_descripcion)<- c("codigo_NAES","descripcion","incluye","excluye")
+names(CUACM_NAES)<- c("codigo_NAES","descripcion_NAES","codigo_CUACM","descripcion_CUACM")
+names(AFIP_NAES)<- c("codigo_NAES","descripcion_NAES","codigo_AFIP","descripcion_AFIP")
+
+llave_NAES_AFIP_CUACM <-  NAES_descripcion %>% 
+  left_join(AFIP_NAES) %>%
+  left_join(CUACM_NAES) #Este orden de fusión es importante, porque así hay un sólo valor faltante, servicios conexos de la minería 
+#(que no existen en CUACM, pero sí en AFIP y NAES).
+
+rm(NAES_descripcion,CUACM_NAES,AFIP_NAES)
+unlink("Bases_externas/NAES_CUACM.xlsx") #Borra el archivo importado
+
+faltantes_llave<-llave_NAES_AFIP_CUACM%>%
+  subset(is.na(codigo_CUACM) | is.na(codigo_AFIP))
+head(faltantes_llave)
+rm(faltantes_llave)
+
+
 ########Obtener todos los cuadros de la página de alícuotas de ERREPAR ---------
 
 #ERREPAR tiene un código de protección: no se puede bajar nada con R. Lo que hay que hacer es: 
@@ -180,14 +220,11 @@ freq_CABA_22<-read_sheet(ss=id_CABA)%>%
   ungroup()%>%
   rename(apariciones=n)
 
-freq_CABA_22<-rename(freq_CABA_22,apariciones=n)
-head(freq_CABA_22)
-
-
 repetidos_CABA_22<-read_sheet(ss=id_CABA)%>%
   left_join(freq_CABA_22)%>%
   subset(apariciones>1)
-head(repetidos_CABA_22)
+view(repetidos_CABA_22)
 head(df_CABA_22)
 view(df_CABA_22)
+
 
