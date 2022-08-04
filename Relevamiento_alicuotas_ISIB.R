@@ -265,7 +265,7 @@ min_max<-function(input,variables,id_variable,min_name,max_name){ #Valores míni
 }
 
 temp<-min_max(df_CABA_22,"alicuota","codigo_NAES",min_ali,max_ali)
-names(temp)<-c("codigo_NAES","min_ali","max_ali")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
 df_CABA_NAES_22<-lista_NAES%>%
   left_join(temp)
@@ -277,5 +277,6 @@ head(faltantes)
 
 rm(faltantes,temp,id_CABA)
 
+drive_trash("CABA_NAES_22")
 gs4_create(name="CABA_NAES_22",sheets=df_CABA_NAES_22)
 drive_mv(file="CABA_NAES_22",path=id_carpeta)
