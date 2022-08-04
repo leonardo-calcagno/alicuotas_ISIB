@@ -215,17 +215,136 @@ drive_mv(file="tucuman_22",path=id_carpeta)
 
 ######## Importamos los cuadros modificados------
 id_CABA<-drive_get("CABA_alícuota22")
-freq_CABA_22<-read_sheet(ss=id_CABA)%>%
-  group_by(V1)%>%
+df_CABA_22<-read_sheet(ss=id_CABA)
+names(df_CABA_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+df_CABA_22<-df_CABA_22%>%
+  mutate(across(where(is.list),~ifelse(.x=="NULL", NA, #Ponemos como valores faltantes las alícuotas que tienen el valor "NULL"
+                                                .x)), 
+         across(where(is.list),~as.character(.x)),#Se importaron las alícuotas como listas, no caracteres; lo corregimos aquí
+         across(everything(),~gsub("%","",.x)), #Sacamos los % de las alícuotas, así las podremos pasar a numérico
+         across(starts_with("alicuota"),~gsub(",",".",.x)), #Reemplazamos las comas por puntos en las alícuotas, así las podremos pasar a numérico
+         es_numerica=ifelse(substr(start=1,stop=1,codigo_NAES) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                            0) #Quitamos las observaciones que no corresponden a un código NAES definido
+         )%>%
+  subset(es_numerica==1)%>%
+  select(-c(es_numerica))%>%
+  mutate(across(starts_with("alicuota"),~as.double(.x)), #Pasamos las alícuotas a numérico
+         across(starts_with("alicuota"),~ifelse(.x<0.2, .x*100, #Se importaron algunas alícuotas, en vez de 10%, como 0,1. Se corrige aquí
+                                                .x)
+                )
+         )%>%
+  select(-c(cuadro))%>%# No es más necesaria la información del cuadro en que estaba el nomenclador
+  distinct()#Hay algunos nomencladores repetidos por error de ERREPAR; los sacamos
+
+freq_CABA_22<-df_CABA_22%>%
+  group_by(codigo_NAES)%>%
   tally()%>%
   ungroup()%>%
   rename(apariciones=n)
 
-repetidos_CABA_22<-read_sheet(ss=id_CABA)%>%
+repetidos_CABA_22<-df_CABA_22%>% #Manejamos los nomencladores que aparecen más de una vez
   left_join(freq_CABA_22)%>%
-  subset(apariciones>1)
-view(repetidos_CABA_22)
-head(df_CABA_22)
-view(df_CABA_22)
+  subset(apariciones>1)%>%
+  distinct()%>%
+  group_by(codigo_NAES)%>%
+  mutate(rango=row_number())%>%#Aislamos la primera, segunda, etc. aparición del nomenclador duplicado
+  ungroup()
 
 
+rango_1<-repetidos_CABA_22%>%
+  subset(rango==1)%>%
+  select(-c(rango,apariciones))
+rango_1<-rango_1[,colSums(is.na(rango_1))<nrow(rango_1)]
+
+rango_2<-repetidos_CABA_22%>%
+  subset(rango==2)%>%
+  select(-c(rango,apariciones))
+rango_2<-rango_2[,colSums(is.na(rango_2))<nrow(rango_2)]
+rango_2<-rango_2%>%
+  rename(fuente_2=fuente, 
+         alicuota_2.1=alicuota_1,
+         alicuota_2.2=alicuota_2,
+         alicuota_2.3=alicuota_3
+         )
+
+rango_3<-repetidos_CABA_22%>%
+  subset(rango==3)%>%
+  select(-c(rango,apariciones))
+rango_3<-rango_3[,colSums(is.na(rango_3))<nrow(rango_3)]
+rango_3<-rango_3%>%
+  rename(fuente_3=fuente, 
+         alicuota_3.1=alicuota_1,
+         alicuota_3.2=alicuota_2
+  )
+
+
+rango_4<-repetidos_CABA_22%>%
+  subset(rango==4)%>%
+  select(-c(rango,apariciones))
+rango_4<-rango_4[,colSums(is.na(rango_4))<nrow(rango_4)]
+rango_4<-rango_4%>%
+  rename(fuente_4=fuente, 
+         alicuota_4.1=alicuota_1
+  )
+repetidos_CABA_22<-rango_1%>%
+  left_join(rango_2)%>%
+  left_join(rango_3)%>%
+  left_join(rango_4)
+
+
+no_repetidos_CABA_22<-df_CABA_22%>%
+  left_join(freq_CABA_22)%>%
+  subset(apariciones==1)%>%
+  arrange(desc(codigo_NAES))%>%
+  select(-c(apariciones))
+
+
+rm(freq_CABA_22,rango_1,rango_2,rango_3,rango_4)
+
+#Así tenemos todas las alícuotas posibles para cada nomenclador de CABA, juntadas en una sola línea por nomenclador, y con el art. 
+    #correspondiente que se puede consultar para ver las condiciones.
+#Para la tabla comparativa, vamos a tomar siempre la alícuota más alta posible para cada actividad (en general grandes contribuyentes).
+    #Se puede hacer lo mismo con la más baja posible para cada actividad.
+head(repetidos_CABA_22)
+min_max<-function(input,variables){
+  var_ali<-as_tibble(input)%>%
+    select(starts_with(variables))
+  
+lista_alicuotas<-names(var_ali) #Creamos una lista con las variables que empiecen con "alicuota"
+  
+  output<-input%>%
+    mutate(min_ali=invoke(pmax,c(across(all_of(lista_alicuotas)),na.rm=TRUE)), #Valor máximo entre las variables que empiecen con "alicuota"
+           max_ali=invoke(pmin,c(across(all_of(lista_alicuotas)),na.rm=TRUE))#Valor máximo entre las variables que empiecen con "alicuota"
+           )
+}
+repetidos_CABA_22<-min_max(repetidos_CABA_22,"alicuota")
+no_repetidos_CABA_22<-min_max(no_repetidos_CABA_22,"alicuota")
+
+lista_variables_NAES<-c("codigo_NAES","descripcion","min_ali","max_ali")
+temp_1<-no_repetidos_CABA_22[,lista_variables_NAES]
+temp_2<-repetidos_CABA_22[,lista_variables_NAES]
+
+temp_3<-rbind(temp_1,temp_2)%>%
+  arrange(codigo_NAES)%>%
+  select(-c(descripcion))%>%
+  distinct()
+
+lista_NAES<-llave_NAES_AFIP_CUACM%>%
+  select(c(codigo_NAES,descripcion))%>%
+  mutate(codigo_NAES=ifelse(codigo_NAES<100000, paste0("0",as.character(codigo_NAES)), 
+                            as.character(codigo_NAES))
+        )%>%                                          
+  distinct()
+
+df_CABA_NAES_22<-lista_NAES%>%
+  left_join(temp_3)
+
+rm(temp_1,temp_2,temp_3)
+
+faltantes<-df_CABA_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes)
+rm(faltantes,repetidos_CABA_22,no_repetidos_CABA_22)
+
+gs4_create(name="CABA_NAES_22",sheets=df_CABA_NAES_22)
+drive_mv(file="CABA_NAES_22",path=id_carpeta)
