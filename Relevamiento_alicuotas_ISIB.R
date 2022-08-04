@@ -47,7 +47,8 @@ llave_NAES_AFIP_CUACM <-  NAES_descripcion %>%
 #(que no existen en CUACM, pero sí en AFIP y NAES).
 
 rm(NAES_descripcion,CUACM_NAES,AFIP_NAES)
-unlink("Bases_externas/NAES_CUACM.xlsx") #Borra el archivo importado
+#unlink("Bases_externas/NAES_CUACM.xlsx")
+unlink("Bases_externas/",recursive = TRUE)  #Borra el archivo importado 
 
 faltantes_llave<-llave_NAES_AFIP_CUACM%>%
   subset(is.na(codigo_CUACM) | is.na(codigo_AFIP))
