@@ -309,12 +309,6 @@ df_buenos_aires_22<-formateo_alicuotas(df_buenos_aires_22,"alicuota",0.2)
 temp<-min_max(df_buenos_aires_22,"alicuota","codigo_NAES")
 
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
-head(temp)
-#temp_lista<-lista_NAES%>%
-#  add_row(codigo_NAES="101041",descripcion="Matanza de ganado porcino y procesamiento de su carne")%>%
-#  add_row(codigo_NAES="101042",descripcion="Matanza de ganado excepto el bovino y porcino y procesamiento de su carne")
-head(lista_NAES)
-
 
 df_buenos_aires_NAES_22<-lista_NAES%>%
   left_join(temp)
@@ -353,3 +347,26 @@ rm(faltantes,temp,temp_faltantes,id_CABA)
 drive_trash("Buenos_Aires_NAES_22")
 gs4_create(name="Buenos_Aires_NAES_22",sheets=df_buenos_aires_NAES_22)
 drive_mv(file="Buenos_Aires_NAES_22",path=id_carpeta)
+
+
+
+
+######## Cuadro NAES IIBB, Chubut------
+
+
+id_chubut<-drive_get("chubut_alicuota22")
+df_chubut_22<-read_sheet(ss=id_chubut) #Importamos cuadro modificado, con alícuota agregada
+names(df_chubut_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3")
+
+df_chubut_22<-formateo_alicuotas(df_chubut_22,"alicuota",0.2)
+temp<-min_max(df_chubut_22,"alicuota","codigo_NAES")
+
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_buenos_aires_NAES_22<-lista_NAES%>%
+  left_join(temp)
+head(df_buenos_aires_NAES_22)
+
+faltantes<-df_buenos_aires_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes)
