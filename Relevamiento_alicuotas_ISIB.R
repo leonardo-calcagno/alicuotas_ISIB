@@ -86,6 +86,7 @@ alicuotas_ERREPAR<- function(input){
   output<-plyr::ldply(tables,data.frame,.id="cuadro") #Esto concatena todas las tablas en un solo df
   #Es importante no cargar la librería plyr, porque entra en conflicto con dplyr para, por ejemplo, rename()
 }
+setwd("tablas_ERREPAR/")
 df_buenos_aires_22<-alicuotas_ERREPAR("buenos_aires_2022")
 df_catamarca_22<-alicuotas_ERREPAR("catamarca_2022")
 df_CABA_22<-alicuotas_ERREPAR("CABA_2022")
@@ -111,6 +112,8 @@ df_santiago_del_estero_22<-alicuotas_ERREPAR("santiago_del_estero_2022")
 df_TDF_22<-alicuotas_ERREPAR("tdf_2022")
 df_tucuman_22<-alicuotas_ERREPAR("tucuman_2022")
 
+setwd("../")
+
 gs4_auth() #Conección a la cuenta google
 
 id_carpeta<-drive_get("Relevamiento_alicuotas")
@@ -128,6 +131,7 @@ df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
                        "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
          )
 rm(id_santiago_del_estero)
+
 
 
 
@@ -224,38 +228,40 @@ drive_mv(file="tucuman_22",path=id_carpeta)
 id_CABA<-drive_get("CABA_alícuota22")
 df_CABA_22<-read_sheet(ss=id_CABA) #Importamos cuadro modificado, con alícuota agregada
 names(df_CABA_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+formateo_alicuotas<-function(input,cat_var,correc_max){
+  output<-input%>%
+    mutate(across(where(is.list),~ifelse(.x=="NULL", NA, #Ponemos como valores faltantes las alícuotas que tienen el valor "NULL"
+                                         .x)), 
+           across(where(is.list),~as.character(.x)),#Se importaron las alícuotas como listas, no caracteres; lo corregimos aquí
+           across(everything(),~gsub("%","",.x)), #Sacamos los % de las alícuotas, así las podremos pasar a numérico
+           across(starts_with(cat_var),~gsub(",",".",.x)), #Reemplazamos las comas por puntos en las alícuotas, así las podremos pasar a numérico
+           es_numerica=ifelse(substr(start=1,stop=1,codigo_NAES) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                              0) #Quitamos las observaciones que no corresponden a un código NAES definido
+    )%>%
+    subset(es_numerica==1)%>%
+    select(-c(es_numerica))%>%
+    mutate(across(starts_with(cat_var),~as.double(.x)), #Pasamos las alícuotas a numérico
+           across(starts_with(cat_var),~ifelse(.x<correc_max, .x*100, #Se importaron algunas alícuotas, en vez de 10%, como 0,1. Se corrige aquí
+                                                  .x)
+           )
+    )%>%
+    select(-c(cuadro))%>%# No es más necesaria la información del cuadro en que estaba el nomenclador
+    distinct()#Hay algunos nomencladores repetidos por error de ERREPAR; los sacamos
+} 
 
-df_CABA_22<-df_CABA_22%>%
-  mutate(across(where(is.list),~ifelse(.x=="NULL", NA, #Ponemos como valores faltantes las alícuotas que tienen el valor "NULL"
-                                                .x)), 
-         across(where(is.list),~as.character(.x)),#Se importaron las alícuotas como listas, no caracteres; lo corregimos aquí
-         across(everything(),~gsub("%","",.x)), #Sacamos los % de las alícuotas, así las podremos pasar a numérico
-         across(starts_with("alicuota"),~gsub(",",".",.x)), #Reemplazamos las comas por puntos en las alícuotas, así las podremos pasar a numérico
-         es_numerica=ifelse(substr(start=1,stop=1,codigo_NAES) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
-                            0) #Quitamos las observaciones que no corresponden a un código NAES definido
-         )%>%
-  subset(es_numerica==1)%>%
-  select(-c(es_numerica))%>%
-  mutate(across(starts_with("alicuota"),~as.double(.x)), #Pasamos las alícuotas a numérico
-         across(starts_with("alicuota"),~ifelse(.x<0.2, .x*100, #Se importaron algunas alícuotas, en vez de 10%, como 0,1. Se corrige aquí
-                                                .x)
-                )
-         )%>%
-  select(-c(cuadro))%>%# No es más necesaria la información del cuadro en que estaba el nomenclador
-  distinct()#Hay algunos nomencladores repetidos por error de ERREPAR; los sacamos
-
+df_CABA_22<-formateo_alicuotas(df_CABA_22,"alicuota",0.2)
 #Para la tabla comparativa, vamos a tomar siempre la alícuota más alta posible para cada actividad (en general grandes contribuyentes).
 #Se puede hacer lo mismo con la más baja posible para cada actividad.
 
-min_max<-function(input,variables,id_variable,min_name,max_name){ #Valores mínimos y máximos de una clase de variables, siguiendo un id
+min_max<-function(input,variables,id_variable){ #Valores mínimos y máximos de una clase de variables, siguiendo un id
   var_ali<-as_tibble(input)%>%
     select(starts_with(variables))
   
   lista_alicuotas<-names(var_ali) #Creamos una lista con las variables que empiecen con "alicuota"
   
   output<-input%>%
-    mutate(minimum=invoke(pmax,c(across(all_of(lista_alicuotas)),na.rm=TRUE)), #Valor máximo entre las variables que empiecen con "alicuota"
-           maximum=invoke(pmin,c(across(all_of(lista_alicuotas)),na.rm=TRUE))#Valor máximo entre las variables que empiecen con "alicuota"
+    mutate(maximum=invoke(pmax,c(across(all_of(lista_alicuotas)),na.rm=TRUE)), #Valor máximo entre las variables que empiecen con "alicuota"
+           minimum=invoke(pmin,c(across(all_of(lista_alicuotas)),na.rm=TRUE))#Valor máximo entre las variables que empiecen con "alicuota"
           )%>%
     group_by(get(id_variable))%>%
     summarise(min_name=min(minimum),
@@ -264,7 +270,7 @@ min_max<-function(input,variables,id_variable,min_name,max_name){ #Valores míni
     ungroup()
 }
 
-temp<-min_max(df_CABA_22,"alicuota","codigo_NAES",min_ali,max_ali)
+temp<-min_max(df_CABA_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
 df_CABA_NAES_22<-lista_NAES%>%
@@ -280,3 +286,70 @@ rm(faltantes,temp,id_CABA)
 drive_trash("CABA_NAES_22")
 gs4_create(name="CABA_NAES_22",sheets=df_CABA_NAES_22)
 drive_mv(file="CABA_NAES_22",path=id_carpeta)
+
+
+
+######## Cuadro NAES IIBB, Buenos Aires------
+
+
+id_buenos_aires<-drive_get("buenos_aires_alicuotas_22")
+df_buenos_aires_22<-read_sheet(ss=id_buenos_aires) #Importamos cuadro modificado, con alícuota agregada
+names(df_buenos_aires_22)<-c("cuadro","codigo_NAES","descripcion","borrar_1","borrar_2","alicuota_gran_c","alicuota_resto_c","alicuota_peque_c","alicuota_can","fuente")
+view(df_buenos_aires_22)
+df_buenos_aires_22<-df_buenos_aires_22%>%
+  select(-c(borrar_1,borrar_2))%>%
+  #Sacamos alícuotas exentas que no siguen el NAES
+  subset(cuadro!="33" & cuadro!="34" & cuadro!="35" & cuadro!="36" & cuadro!="37" & cuadro!="38" & cuadro!="39" & cuadro!="40" & cuadro!="41" & cuadro!="42" & cuadro!="43" & cuadro!="44")%>%
+  mutate(across(starts_with("alicuota"),~gsub("Exentas","0",.x)), #Ponemos en 0 las alícuotas exentas
+         codigo_NAES=gsub("\\(3\\)","",codigo_NAES), #Quitamos  (3)
+         codigo_NAES=gsub("\\(4\\)","",codigo_NAES), #Quitamos (4)
+        )
+
+df_buenos_aires_22<-formateo_alicuotas(df_buenos_aires_22,"alicuota",0.2)
+temp<-min_max(df_buenos_aires_22,"alicuota","codigo_NAES")
+
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+head(temp)
+#temp_lista<-lista_NAES%>%
+#  add_row(codigo_NAES="101041",descripcion="Matanza de ganado porcino y procesamiento de su carne")%>%
+#  add_row(codigo_NAES="101042",descripcion="Matanza de ganado excepto el bovino y porcino y procesamiento de su carne")
+head(lista_NAES)
+
+
+df_buenos_aires_NAES_22<-lista_NAES%>%
+  left_join(temp)
+head(df_buenos_aires_NAES_22)
+
+faltantes<-df_buenos_aires_NAES_22%>%
+  subset(is.na(max_ali))%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES)) #Hay códigos NAES más generales para Buenos Aires, con sólo 5 dígitos
+
+temp_faltantes<-temp%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES))%>%
+  select(-c(codigo_NAES))%>%
+  group_by(codigo_corto)%>%
+  summarise(min_ali=min(min_ali), 
+            max_ali=max(max_ali))%>%
+  ungroup()
+
+
+faltantes<-faltantes%>%
+  select(-c(min_ali,max_ali))%>%
+  left_join(temp_faltantes)%>%
+  distinct()%>%
+  select(-c(codigo_corto))
+
+df_buenos_aires_NAES_22<-df_buenos_aires_NAES_22%>%
+  subset(!is.na(max_ali))%>%
+  rbind(faltantes)%>%
+  arrange(codigo_NAES)
+
+faltantes<-df_buenos_aires_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+         
+rm(faltantes,temp,temp_faltantes,id_CABA)
+
+drive_trash("Buenos_Aires_NAES_22")
+gs4_create(name="Buenos_Aires_NAES_22",sheets=df_buenos_aires_NAES_22)
+drive_mv(file="Buenos_Aires_NAES_22",path=id_carpeta)
