@@ -349,24 +349,91 @@ gs4_create(name="Buenos_Aires_NAES_22",sheets=df_buenos_aires_NAES_22)
 drive_mv(file="Buenos_Aires_NAES_22",path=id_carpeta)
 
 
-
-
 ######## Cuadro NAES IIBB, Chubut------
-
 
 id_chubut<-drive_get("chubut_alicuota22")
 df_chubut_22<-read_sheet(ss=id_chubut) #Importamos cuadro modificado, con alícuota agregada
 names(df_chubut_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3")
-
+df_chubut_22<-df_chubut_22%>% #Corregimos errores tipográficos de ERREPAR
+  mutate(codigo_NAES=gsub("S","5",codigo_NAES), 
+         codigo_NAES=gsub("Ó","0",codigo_NAES), 
+         codigo_NAES=gsub("\\$","5",codigo_NAES), 
+         codigo_NAES=ifelse(descripcion=="Emisión y retransmisión de radio", "601000", 
+                            codigo_NAES))
 df_chubut_22<-formateo_alicuotas(df_chubut_22,"alicuota",0.2)
 temp<-min_max(df_chubut_22,"alicuota","codigo_NAES")
 
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
-df_buenos_aires_NAES_22<-lista_NAES%>%
+df_chubut_NAES_22<-lista_NAES%>%
   left_join(temp)
-head(df_buenos_aires_NAES_22)
+head(df_chubut_NAES_22)
 
-faltantes<-df_buenos_aires_NAES_22%>%
+faltantes<-df_chubut_NAES_22%>%
   subset(is.na(max_ali))
 view(faltantes)
+
+rm(temp,id_chubut,faltantes)
+
+drive_trash("Chubut_NAES_22")
+gs4_create(name="Chubut_NAES_22",sheets=df_chubut_NAES_22)
+drive_mv(file="Chubut_NAES_22",path=id_carpeta)
+
+######## Cuadro NAES IIBB, Córdoba------
+id_cordoba<-drive_get("cordoba_alícuota22")
+df_cordoba_22<-read_sheet(ss=id_cordoba)
+names(df_cordoba_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3")
+df_cordoba_22<-df_cordoba_22%>%
+  mutate(codigo_NAES=gsub("\\(3\\)","",codigo_NAES), #Quitamos  (3)
+         codigo_NAES=gsub("\\(4\\)","",codigo_NAES), #Quitamos (4))
+         codigo_NAES=gsub("\\(5\\)","",codigo_NAES), #Quitamos (5))
+         codigo_NAES=gsub("\\(6\\)","",codigo_NAES), #Quitamos (6))
+         codigo_NAES=gsub("\\(7\\)","",codigo_NAES), #Quitamos (7))
+         codigo_NAES=gsub("\\(8\\)","",codigo_NAES), #Quitamos (8))
+         codigo_NAES=gsub("\\(9\\)","",codigo_NAES), #Quitamos (9))
+         codigo_NAES=gsub("\\(10\\)","",codigo_NAES), #Quitamos (10))
+         codigo_NAES=gsub("\\(11\\)","",codigo_NAES), #Quitamos (11))
+         codigo_NAES=gsub("\\(12\\)","",codigo_NAES), #Quitamos (12))
+         codigo_NAES=gsub("\\(13\\)","",codigo_NAES), #Quitamos (13))
+         codigo_NAES=gsub("\\(14\\)","",codigo_NAES), #Quitamos (14))
+         codigo_NAES=gsub("\\(15\\)","",codigo_NAES), #Quitamos (15))
+         codigo_NAES=gsub("\\(16\\)","",codigo_NAES), #Quitamos (16))
+         codigo_NAES=gsub("\\(17\\)","",codigo_NAES), #Quitamos (17))
+         codigo_NAES=gsub("\\(18\\)","",codigo_NAES), #Quitamos (18))
+         codigo_NAES=gsub("\\(19\\)","",codigo_NAES), #Quitamos (19))
+         codigo_NAES=gsub("\\(20\\)","",codigo_NAES), #Quitamos (20))
+         codigo_NAES=gsub("\\(21\\)","",codigo_NAES), #Quitamos (21))
+         codigo_NAES=gsub("\\(22\\)","",codigo_NAES), #Quitamos (22))
+         codigo_NAES=gsub("\\(23\\)","",codigo_NAES), #Quitamos (23))
+         cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                            codigo_NAES), 
+         codigo_NAES=ifelse(descripcion=="Perforación de pozos de agua", "422100", 
+                            codigo_NAES), 
+         codigo_NAES=ifelse(descripcion=="Construcción, reforma y reparación de redes distribución de electricidad, gas, agua, telecomunicaciones y de otros servicios públicos", "422200", 
+                            codigo_NAES),
+         codigo_NAES=ifelse(descripcion=="Servicios inmobiliarios realizados por cuenta propia, con bienes urbanos propios o arrendados n.c.p.", "681098", 
+                            codigo_NAES)
+         )%>%
+  select(-c(cod_num))
+
+df_cordoba_22<-formateo_alicuotas(df_cordoba_22,"alicuota",0.2)
+temp<-min_max(df_cordoba_22,"alicuota","codigo_NAES")
+
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+
+df_cordoba_NAES_22<-lista_NAES%>%
+  left_join(temp)
+head(df_cordoba_NAES_22)
+
+faltantes<-df_cordoba_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes)
+
+rm(temp,id_cordoba,faltantes)
+
+drive_trash("Cordoba_NAES_22")
+gs4_create(name="Cordoba_NAES_22",sheets=df_cordoba_NAES_22)
+drive_mv(file="Cordoba_NAES_22",path=id_carpeta)
