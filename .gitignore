@@ -40,8 +40,8 @@ vignettes/*.pdf
 
 # HTML files
 
-*.htm
 *.html
+*.htm
 
 # Excel files
 
