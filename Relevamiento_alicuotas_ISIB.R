@@ -342,7 +342,7 @@ faltantes<-df_buenos_aires_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
          
-rm(faltantes,temp,temp_faltantes,id_CABA)
+rm(faltantes,temp,temp_faltantes,id_buenos_aires)
 
 drive_trash("Buenos_Aires_NAES_22")
 gs4_create(name="Buenos_Aires_NAES_22",sheets=df_buenos_aires_NAES_22)
@@ -534,3 +534,101 @@ faltantes<-df_formosa_NAES_22%>%
 head(faltantes)
 
 rm(temp,id_formosa,faltantes)
+
+drive_trash("Formosa_NAES_22")
+gs4_create(name="Formosa_NAES_22",sheets=df_formosa_NAES_22)
+drive_mv(file="Formosa_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Jujuy------
+
+
+id_jujuy<-drive_get("jujuy_22_alicuota")
+df_jujuy_22<-read_sheet(ss=id_jujuy)
+names(df_jujuy_22)<-c("cuadro","codigo_NAES","alicuota_gen","alicuota_esp","alicuota_2","alicuota_3","alicuota_4","alicuota_5","alicuota_6","alicuota_7","alicuota_8")
+
+df_jujuy_22<-formateo_alicuotas(df_jujuy_22,"alicuota",0.2)
+temp<-min_max(df_jujuy_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_jujuy_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_jujuy_NAES_22%>%
+  subset(is.na(max_ali))%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES)) #Hay códigos NAES más generales para Buenos Aires, con sólo 5 dígitos
+
+temp_faltantes<-temp%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES))%>%
+  select(-c(codigo_NAES))%>%
+  group_by(codigo_corto)%>%
+  summarise(min_ali=min(min_ali), 
+            max_ali=max(max_ali))%>%
+  ungroup()
+
+
+faltantes<-faltantes%>%
+  select(-c(min_ali,max_ali))%>%
+  left_join(temp_faltantes)%>%
+  distinct()%>%
+  select(-c(codigo_corto))
+
+df_jujuy_NAES_22<-df_jujuy_NAES_22%>%
+  subset(!is.na(max_ali))%>%
+  rbind(faltantes)%>%
+  arrange(codigo_NAES)
+
+faltantes<-df_jujuy_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+
+rm(temp,id_jujuy,faltantes)
+
+drive_trash("Jujuy_NAES_22")
+gs4_create(name="Jujuy_NAES_22",sheets=df_jujuy_NAES_22)
+drive_mv(file="Jujuy_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, La Pampa------
+
+
+id_la_pampa<-drive_get("la_pampa_22_alicuota")
+df_la_pampa_22<-read_sheet(ss=id_la_pampa)
+names(df_la_pampa_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_a","alicuota_b","fuente")
+
+df_la_pampa_22<-df_la_pampa_22%>%
+  mutate(codigo_NAES=gsub("\\(1\\)","",codigo_NAES), #Quitamos  (1)
+         cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                            codigo_NAES),
+         #Por art. 33 Ley 3402, se agrava la alícuota de la columna a) en un 30%  si se pasa un nivel de facturación, y si no hay una alícuota 
+         #prevista en la columna b)
+         alicuota_num=as.double(gsub("\\,","\\.",alicuota_a)),
+         alicuota_num=alicuota_num*1.3,
+         alicuota_num=as.character(gsub("\\.","\\,",alicuota_num)),
+         alicuota_c=ifelse(is.na(alicuota_b) & cuadro=="2", as.character(alicuota_num), 
+                           alicuota_a)
+  )
+df_la_pampa_22<-formateo_alicuotas(df_la_pampa_22,"alicuota",0.2)
+temp<-min_max(df_la_pampa_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_la_pampa_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(is.na(min_ali), 3, #Las actividades que no tengan tratamiento especial en la ley impositiva tienen 3%
+                        min_ali), 
+         max_ali=ifelse(is.na(max_ali), 3.9, #Agravada en 30% para las empresas más grandes 
+                        max_ali)
+         )
+
+faltantes<-df_la_pampa_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+rm(temp,id_la_pampa,faltantes)
+
+drive_trash("La_Pampa_NAES_22")
+gs4_create(name="La_Pampa_NAES_22",sheets=df_la_pampa_NAES_22)
+drive_mv(file="La_Pampa_NAES_22",path=id_carpeta)
