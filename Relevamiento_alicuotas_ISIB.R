@@ -463,8 +463,6 @@ df_corrientes_NAES_22<-lista_NAES%>%
          max_ali=ifelse(codigo_NAES=="949920", 0, 
                         max_ali)
          )
-head(df_corrientes_NAES_22)
-
 
 faltantes<-df_corrientes_NAES_22%>%
   subset(is.na(max_ali))
@@ -476,3 +474,33 @@ rm(temp,id_corrientes,faltantes)
 drive_trash("Corrientes_NAES_22")
 gs4_create(name="Corrientes_NAES_22",sheets=df_corrientes_NAES_22)
 drive_mv(file="Corrientes_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Entre Ríos------
+
+id_entre_rios<-drive_get("entre_rios_22_alicuota")
+df_entre_rios_22<-read_sheet(ss=id_entre_rios)
+df_entre_rios_22<-df_entre_rios_22[,c(1,2,3,12,13,14,15)] #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
+names(df_entre_rios_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_micro","alicuota_med1","alicuota_med2","alicuota_grande")
+
+df_entre_rios_22<-df_entre_rios_22%>%
+  subset(cuadro!=5)  #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
+
+df_entre_rios_22<-formateo_alicuotas(df_entre_rios_22,"alicuota",0.2)
+temp<-min_max(df_entre_rios_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_entre_rios_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_entre_rios_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes)
+
+rm(temp,id_corrientes,faltantes)
+
+drive_trash("Entre_Rios_NAES_22")
+gs4_create(name="Entre_Rios_NAES_22",sheets=df_entre_rios_NAES_22)
+drive_mv(file="Entre_Rios_NAES_22",path=id_carpeta)
+
