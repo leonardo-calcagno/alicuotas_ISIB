@@ -616,17 +616,19 @@ temp<-min_max(df_la_pampa_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
 df_la_pampa_NAES_22<-lista_NAES%>%
-  left_join(temp)%>%
-  mutate(min_ali=ifelse(is.na(min_ali), 3, #Las actividades que no tengan tratamiento especial en la ley impositiva tienen 3%
-                        min_ali), 
-         max_ali=ifelse(is.na(max_ali), 3.9, #Agravada en 30% para las empresas más grandes 
-                        max_ali)
-         )
+  left_join(temp)
 
 faltantes<-df_la_pampa_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
 
+df_la_pampa_NAES_22<-df_la_pampa_NAES_22%>%
+  mutate(min_ali=ifelse(is.na(min_ali), 3, #Las actividades que no tengan tratamiento especial en la ley impositiva tienen 3%
+                        min_ali), 
+         max_ali=ifelse(is.na(max_ali), 3.9, #Agravada en 30% para las empresas más grandes 
+                        max_ali)
+         )
+head(df_la_pampa_NAES_22)
 rm(temp,id_la_pampa,faltantes)
 
 drive_trash("La_Pampa_NAES_22")
