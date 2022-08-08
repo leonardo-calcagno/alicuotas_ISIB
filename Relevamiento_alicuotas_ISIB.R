@@ -634,3 +634,38 @@ rm(temp,id_la_pampa,faltantes)
 drive_trash("La_Pampa_NAES_22")
 gs4_create(name="La_Pampa_NAES_22",sheets=df_la_pampa_NAES_22)
 drive_mv(file="La_Pampa_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, La Rioja------
+
+
+id_la_rioja<-drive_get("la_rioja_alícuota22")
+df_la_rioja_22<-read_sheet(ss=id_la_rioja)
+view(df_la_rioja_22)
+names(df_la_rioja_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","min_anual","fijo","fuente")
+head(df_la_rioja_22)
+
+df_la_rioja_22<-formateo_alicuotas(df_la_rioja_22,"alicuota",0.2)
+temp<-min_max(df_la_rioja_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_la_rioja_NAES_22<-lista_NAES%>%
+  left_join(temp)%>% #Hay algunos códigos faltantes, por error de carga (esquila) o por no estar mencionados (generación energía eléctrica)
+  mutate(min_ali=ifelse(codigo_NAES=="016230",2.5, 
+                        ifelse(codigo_NAES=="351110" | codigo_NAES=="351120", 2.5, 
+                               min_ali)), 
+         max_ali=ifelse(codigo_NAES=="016230",4, 
+                        ifelse(codigo_NAES=="351110" | codigo_NAES=="351120", 2.5, #Le ponemos la alícuota general
+                               max_ali))
+        )
+
+faltantes<-df_la_rioja_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+
+rm(temp,id_la_rioja,faltantes)
+
+drive_trash("La_Rioja_NAES_22")
+gs4_create(name="La_Rioja_NAES_22",sheets=df_la_rioja_NAES_22)
+drive_mv(file="La_Rioja_NAES_22",path=id_carpeta)
