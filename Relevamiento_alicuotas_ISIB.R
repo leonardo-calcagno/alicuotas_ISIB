@@ -496,11 +496,41 @@ df_entre_rios_NAES_22<-lista_NAES%>%
 
 faltantes<-df_entre_rios_NAES_22%>%
   subset(is.na(max_ali))
-view(faltantes)
+head(faltantes)
 
-rm(temp,id_corrientes,faltantes)
+rm(temp,id_entre_rios,faltantes)
 
 drive_trash("Entre_Rios_NAES_22")
 gs4_create(name="Entre_Rios_NAES_22",sheets=df_entre_rios_NAES_22)
 drive_mv(file="Entre_Rios_NAES_22",path=id_carpeta)
 
+
+######## Cuadro NAES IIBB, Formosa------
+
+
+id_formosa<-drive_get("formosa_22_alicuota")
+df_formosa_22<-read_sheet(ss=id_formosa)
+names(df_formosa_22)<- c("cuadro","codigo_NAES","descripcion","tratamiento","alicuota","tratamiento_2","incluye","excluye")
+
+df_formosa_22<-df_formosa_22%>%
+  group_by(incluye)%>%
+  fill(codigo_NAES)%>%
+  fill(codigo_NAES,.direction="up")%>%  #Hay que expandir el código NAES a tratamientos en que no estaba incluido
+  ungroup()%>%
+  mutate(cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                            codigo_NAES)
+         )
+
+df_formosa_22<-formateo_alicuotas(df_formosa_22,"alicuota",0.2)
+temp<-min_max(df_formosa_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_formosa_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_formosa_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+rm(temp,id_formosa,faltantes)
