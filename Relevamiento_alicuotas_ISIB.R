@@ -669,3 +669,60 @@ rm(temp,id_la_rioja,faltantes)
 drive_trash("La_Rioja_NAES_22")
 gs4_create(name="La_Rioja_NAES_22",sheets=df_la_rioja_NAES_22)
 drive_mv(file="La_Rioja_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Mendoza------
+
+
+id_mendoza<-drive_get("mendoza_alícuota22")
+df_mendoza_22<-read_sheet(ss=id_mendoza)
+view(df_mendoza_22)
+names(df_mendoza_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","tamanio","fuente")
+
+df_mendoza_22<-df_mendoza_22%>%
+  mutate(cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                            codigo_NAES),
+         across(everything(),~gsub("%","",.x)), #Sacamos los % de las alícuotas, así las podremos pasar a numérico
+#Varias actividades tienen alícuotas reducidas sólo si cumplen con ciertas condiciones, si no, caen en la general. Corregimos el dato aquí
+         alicuota_agravada=ifelse(grepl("(1)",descripcion,fixed=TRUE),"0,75", #Agrícola-ganadera, general
+                              ifelse(grepl("(4)",descripcion,fixed=TRUE),
+                                     ifelse(cod_num>=101011 & cod_num<=370000,"1,5", #Manufacturera, general
+                                            ifelse(cod_num>=410011 & cod_num<=439990, "2,5",#Construcción, general
+                                                  alicuota)
+                                            ),
+                                    alicuota)
+                                  ),
+         aumento=ifelse(grepl("(5)",descripcion,fixed=TRUE), 1, #En algunos casos, agrega 1% o 1,5% a la alícuota
+                        ifelse(grepl("(13)", descripcion, fixed=TRUE), 1.5, 
+                              0)
+                       ),
+         aumento_2=ifelse(tamanio==1, 0.5, #Para casi todas las actividades, hay un esquema de sobrealícuotas según facturación
+                          ifelse(tamanio==2, 1, 
+                                 0)
+                          ),
+         alicuota_num=gsub(",",".",alicuota_agravada),
+         alicuota_max=as.double(alicuota_num)+aumento + aumento_2
+        )
+view(df_mendoza_22)
+
+
+df_mendoza_22<-formateo_alicuotas(df_mendoza_22,"alicuota",0.3)
+temp<-min_max(df_mendoza_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_mendoza_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_mendoza_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+view(df_mendoza_NAES_22)
+rm(temp,id_mendoza,faltantes)
+
+drive_trash("Mendoza_NAES_22")
+gs4_create(name="Mendoza_NAES_22",sheets=df_mendoza_NAES_22)
+drive_mv(file="Mendoza_NAES_22",path=id_carpeta)
+
