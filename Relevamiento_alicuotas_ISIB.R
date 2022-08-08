@@ -437,3 +437,42 @@ rm(temp,id_cordoba,faltantes)
 drive_trash("Cordoba_NAES_22")
 gs4_create(name="Cordoba_NAES_22",sheets=df_cordoba_NAES_22)
 drive_mv(file="Cordoba_NAES_22",path=id_carpeta)
+
+######## Cuadro NAES IIBB, Corrientes------
+
+
+id_corrientes<-drive_get("corrientes_alícuota22")
+df_corrientes_22<-read_sheet(ss=id_corrientes)
+df_corrientes_22<-df_corrientes_22[,c(1,8,9,10,11,12,13)] #No nos interesan los códigos de actividad locales
+names(df_corrientes_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","minimo","regimen","regimen_desc")
+df_corrientes_22<-df_corrientes_22%>%
+  mutate(cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                   codigo_NAES), 
+         alicuota=gsub("\\_","",alicuota), 
+        )
+
+df_corrientes_22<-formateo_alicuotas(df_corrientes_22,"alicuota",0.2)
+temp<-min_max(df_corrientes_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_corrientes_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(codigo_NAES=="949920", 0, #Servicios de consorcio no están alcanzados por ISIB Corrientes
+                        min_ali), 
+         max_ali=ifelse(codigo_NAES=="949920", 0, 
+                        max_ali)
+         )
+head(df_corrientes_NAES_22)
+
+
+faltantes<-df_corrientes_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes)
+
+rm(temp,id_corrientes,faltantes)
+
+
+drive_trash("Corrientes_NAES_22")
+gs4_create(name="Corrientes_NAES_22",sheets=df_corrientes_NAES_22)
+drive_mv(file="Corrientes_NAES_22",path=id_carpeta)
