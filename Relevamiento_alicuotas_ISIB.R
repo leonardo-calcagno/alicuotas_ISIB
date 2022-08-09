@@ -868,3 +868,9 @@ df_rio_negro_NAES_22<-lista_NAES%>%
 faltantes<-df_rio_negro_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
+
+
+
+drive_trash("Rio_Negro_NAES_22")
+gs4_create(name="Rio_Negro_NAES_22",sheets=df_rio_negro_NAES_22)
+drive_mv(file="Rio_Negro_NAES_22",path=id_carpeta)
