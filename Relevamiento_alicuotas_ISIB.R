@@ -836,6 +836,6 @@ faltantes<-df_neuquen_NAES_22%>%
 rm(temp,id_neuquen,faltantes)
 
 
-drive_trash("Neuquens_NAES_22")
+drive_trash("Neuquen_NAES_22")
 gs4_create(name="Neuquen_NAES_22",sheets=df_neuquen_NAES_22)
 drive_mv(file="Neuquen_NAES_22",path=id_carpeta)
