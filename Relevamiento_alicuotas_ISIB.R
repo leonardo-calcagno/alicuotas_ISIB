@@ -787,3 +787,55 @@ rm(temp,id_misiones,faltantes,list=ls(pattern="lista_"))
 drive_trash("Misiones_NAES_22")
 gs4_create(name="Misiones_NAES_22",sheets=df_misiones_NAES_22)
 drive_mv(file="Misiones_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Neuquén------
+
+id_neuquen<-drive_get("neuquen_22_alicuotas")
+df_neuquen_22<-read_sheet(ss=id_neuquen)
+names(df_neuquen_22)<- c("cuadro","codigo_NAES","descripcion","alicuota","alicuota_2","alicuota_3","alicuota_4","alicuota_5","fuente")
+head(df_neuquen_22)
+df_neuquen_22<-df_neuquen_22%>%
+  mutate(alicuota=ifelse(cuadro=="4", 0.025, 
+                         ifelse(cuadro=="6",0.055,
+                                ifelse(cuadro=="12", 0.07,
+                                       ifelse(cuadro=="13", 0.035,alicuota)
+                                       )
+                                )
+                        ), 
+         alicuota=ifelse(codigo_NAES=="612000", 0.065, 
+                         alicuota),
+         across(starts_with("alicuota"),~gsub("Exento","0",.x)) #Ponemos en 0 las alícuotas exentas
+         )
+
+df_neuquen_22<-formateo_alicuotas(df_neuquen_22,"alicuota",0.3)
+temp<-min_max(df_neuquen_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_neuquen_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(codigo_NAES=="161001" | codigo_NAES=="161002", 1.5, 
+                    ifelse(codigo_NAES=="464910", 5, 
+                       ifelse(codigo_NAES=="476121", 0, 
+                          min_ali)
+                           )
+                     ), 
+         max_ali=ifelse(codigo_NAES=="161001" | codigo_NAES=="161002", 1.5, 
+                        ifelse(codigo_NAES=="464910", 5, 
+                               ifelse(codigo_NAES=="476121", 0, 
+                                      max_ali)
+                             )
+                        ) 
+         )
+
+faltantes<-df_neuquen_NAES_22%>%
+  subset(is.na(max_ali))
+
+
+rm(temp,id_neuquen,faltantes)
+
+
+drive_trash("Neuquens_NAES_22")
+gs4_create(name="Neuquen_NAES_22",sheets=df_neuquen_NAES_22)
+drive_mv(file="Neuquen_NAES_22",path=id_carpeta)
