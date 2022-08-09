@@ -719,10 +719,71 @@ faltantes<-df_mendoza_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
 
-view(df_mendoza_NAES_22)
 rm(temp,id_mendoza,faltantes)
 
 drive_trash("Mendoza_NAES_22")
 gs4_create(name="Mendoza_NAES_22",sheets=df_mendoza_NAES_22)
 drive_mv(file="Mendoza_NAES_22",path=id_carpeta)
 
+
+
+######## Cuadro NAES IIBB, Misiones------
+
+id_misiones<-drive_get("misiones_22_alicuota")
+df_misiones_22<-read_sheet(ss=id_misiones)
+
+names(df_misiones_22)<- c("cuadro","codigo_ley","codigo_NAES","codigo_provincial","descripcion","alicuota","fuente")
+df_misiones_22<-df_misiones_22%>%
+  mutate(across(starts_with("alicuota"),~gsub("Exento","0",.x)), #Ponemos en 0 las alícuotas exentas
+         across(starts_with("alicuota"),~gsub("\\(1\\)","",.x)), #Quitamos  (1)
+         across(starts_with("alicuota"),~gsub("\\(3\\)","",.x)), #Quitamos  (3)
+         across(starts_with("alicuota"),~gsub("\\(4\\)","",.x)), #Quitamos  (4)
+        )
+df_misiones_22<-formateo_alicuotas(df_misiones_22,"alicuota",0.3)
+temp<-min_max(df_misiones_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+lista_servicios_petroleros<-c("091001","091002","091003","091009")
+lista_venta_mayor_combustibles<-c("466111","466112","466119","466122","466123","466129")
+lista_venta_menor_combustibles<-c("473001","473002","473003","477461","477462","920001","920009")
+lista_transporte<-c("491201","491209")
+lista_libros<-c("581100","581300")
+
+df_misiones_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(codigo_NAES %in% lista_servicios_petroleros, 5,
+                        ifelse(codigo_NAES %in% lista_venta_mayor_combustibles, 4.5,
+                               ifelse(codigo_NAES %in% lista_venta_menor_combustibles, 8,
+                                      ifelse(codigo_NAES=="476121", 0, 
+                                             ifelse(codigo_NAES %in% lista_transporte, 2, 
+                                                    ifelse(codigo_NAES %in% lista_libros, 1.5, 
+                                                           min_ali)
+                                                    )
+                                            )
+                                    )
+                               )
+                        ),
+         max_ali=ifelse(codigo_NAES %in% lista_servicios_petroleros, 5,
+                        ifelse(codigo_NAES %in% lista_venta_mayor_combustibles, 4.5,
+                               ifelse(codigo_NAES %in% lista_venta_menor_combustibles, 8,
+                                      ifelse(codigo_NAES=="476121", 0, 
+                                             ifelse(codigo_NAES %in% lista_transporte, 2, 
+                                                    ifelse(codigo_NAES %in% lista_libros, 1.5, 
+                                                           max_ali)
+                                                    )
+                                             )
+                                     )
+                              )
+                       )
+         )
+
+faltantes<-df_misiones_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+rm(temp,id_misiones,faltantes,list=ls(pattern="lista_"))
+
+
+drive_trash("Misiones_NAES_22")
+gs4_create(name="Misiones_NAES_22",sheets=df_misiones_NAES_22)
+drive_mv(file="Misiones_NAES_22",path=id_carpeta)
