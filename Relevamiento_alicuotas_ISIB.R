@@ -831,7 +831,7 @@ df_neuquen_NAES_22<-lista_NAES%>%
 
 faltantes<-df_neuquen_NAES_22%>%
   subset(is.na(max_ali))
-
+head(faltantes)
 
 rm(temp,id_neuquen,faltantes)
 
@@ -839,3 +839,32 @@ rm(temp,id_neuquen,faltantes)
 drive_trash("Neuquen_NAES_22")
 gs4_create(name="Neuquen_NAES_22",sheets=df_neuquen_NAES_22)
 drive_mv(file="Neuquen_NAES_22",path=id_carpeta)
+
+
+
+
+######## Cuadro NAES IIBB, Río Negro------
+
+
+id_rio_negro<-drive_get("rio_negro_22_alicuota")
+df_rio_negro_22<-read_sheet(ss=id_rio_negro)
+names(df_rio_negro_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","fuente")
+
+df_rio_negro_22<-df_rio_negro_22%>%
+  mutate(codigo_NAES=gsub("/0","",codigo_NAES), #Sacamos /0, /1 y /2 del código NAES.
+         codigo_NAES=gsub("/1","",codigo_NAES), 
+         codigo_NAES=gsub("/3","",codigo_NAES), 
+         )
+
+
+df_rio_negro_22<-formateo_alicuotas(df_rio_negro_22,"alicuota",0.3)
+temp<-min_max(df_rio_negro_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_rio_negro_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_rio_negro_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
