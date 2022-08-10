@@ -874,3 +874,197 @@ head(faltantes)
 drive_trash("Rio_Negro_NAES_22")
 gs4_create(name="Rio_Negro_NAES_22",sheets=df_rio_negro_NAES_22)
 drive_mv(file="Rio_Negro_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Salta------
+
+
+###Las alícuotas para contribuyentes de convenio multilateral están en un pdf, que pasamos a excel con ilovepdf
+
+read_excel_allsheets <- function(filename, tibble = FALSE) { #Función tomada de https://stackoverflow.com/questions/12945687/read-all-worksheets-in-an-excel-workbook-into-an-r-list-with-data-frames
+  # I prefer straight data.frames
+  # but if you like tidyverse tibbles (the default with read_excel)
+  # then just pass tibble = TRUE
+  sheets <- readxl::excel_sheets(filename)
+  x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
+  if(!tibble) x <- lapply(x, as.data.frame)
+  names(x) <- sheets
+  x
+}
+#substrRight <- function(x, n){
+#  substr(x, start=nchar(x)-n+1, stop=nchar(x)-n+1)
+#}
+
+table_list<-read_excel_allsheets("RG_16-2022_SALTA_ANEXOII.xlsx")
+tables <- list.clean(table_list, fun = is.null, recursive = FALSE) # Esta instrucción es para quedarse sólo con las tablas 
+#n.rows <- unlist(lapply(tables, function(t) dim(t)[1]))
+#cuadro_mas_largo<-tables[[which.max(n.rows)]]
+n.tables<-length(tables)
+tables<-setNames(tables,c(1:n.tables)) #Cuadros renombrados según orden de aparición en la página
+
+#tables<-lapply(tables,function(x) dplyr::mutate(x,mergeid=row_number())
+#)
+df_salta_anexo2_22<-plyr::ldply(tables,data.frame,.id="cuadro") #Esto concatena todas las tablas en un solo df
+
+df_codigos<-df_salta_anexo2_22%>%
+  select(starts_with("ANEXO") | starts_with("X"))%>%
+  mutate(mergeid=row_number())
+
+df_no_codigos<-df_salta_anexo2_22%>%
+  select(!starts_with("ANEXO") & !starts_with("X"))%>%
+  mutate(mergeid=row_number())
+
+names(df_no_codigos)<-c("cuadro","descripcion","incluye","excluye","alicuota_1","alicuota_2","alicuota_3","alicuota_4","alicuota_5","alicuota_6","alicuota_7","alicuota_8","mergeid")
+names(df_codigos)<-c("cod_1","cod_2","cod_3","cod_4","cod_5","cod_6","cod_7","cod_8","cod_9","cod_10","cod_11","cod_12","cod_13","cod_14","cod_15","cod_16","cod_17","cod_18","cod_19","mergeid")
+#,1032,1041
+lista_a_mantener<-c(871,952,963,997,1009,1034,1035,1070,1381,1413,1442,1460,1472,1475,1573,1576,1579,1584,1596,1600,1704,1852,1854,1890,1899,1918,1924,1927,1956,1960,1961,2045,2137)
+lista_a_quitar<-c(1018,1020,1049,1250,1032,1041,1420,1421,1571,1572,1574,1577,1595,1598,1855,1889,2061)
+df_codigos<-df_codigos%>%
+  mutate(concatenado=ifelse(!is.na(cod_1),cod_1,
+                            ifelse(!is.na(cod_2),cod_2,
+                                   ifelse(!is.na(cod_3),cod_3,
+                                          ifelse(!is.na(cod_4),cod_4,
+                                                 ifelse(!is.na(cod_5),cod_5,
+                                                        ifelse(!is.na(cod_6),cod_6,
+                                                               ifelse(!is.na(cod_7),cod_7,
+                                                                      ifelse(!is.na(cod_8),cod_8,
+                                                                             ifelse(!is.na(cod_9),cod_9,
+                                                                                    ifelse(!is.na(cod_10),cod_10,
+                                                                                           ifelse(!is.na(cod_11),cod_11,
+                                                                                                  ifelse(!is.na(cod_12),cod_12,
+                                                                                                         ifelse(!is.na(cod_13),cod_13,
+                                                                                                                ifelse(!is.na(cod_14),cod_14,
+                                                                                                                       ifelse(!is.na(cod_15),cod_15,
+                                                                                                                              ifelse(!is.na(cod_16),cod_16,
+                                                                                                                                     ifelse(!is.na(cod_17),cod_17,
+                                                                                                                                            ifelse(!is.na(cod_18),cod_18,
+                                                                                                                                                   cod_19)
+                                                                                                                                     )
+                                                                                                                              )
+                                                                                                                       )
+                                                                                                                )
+                                                                                                         )
+                                                                                                  )
+                                                                                           )
+                                                                                    )
+                                                                             )
+                                                                      )
+                                                               )
+                                                        )
+                                                 )
+                                          )
+                                   )
+                            )
+                    )
+         )%>%
+#  subset(!is.na(concatenado))%>%
+  select(c(concatenado,mergeid))%>%
+  left_join(df_no_codigos)%>%
+  mutate(es_codigo=ifelse(grepl("[0-9]",concatenado), 1, 
+                          0), 
+         sin_alicuota=ifelse(grepl("[0-9]",alicuota_1),0, 
+                             ifelse(grepl("[0-9]",alicuota_2),0, 
+                                    ifelse(grepl("[0-9]",alicuota_3),0, 
+                                           ifelse(grepl("[0-9]",alicuota_4),0,
+                                                  ifelse(grepl("[0-9]",alicuota_5),0, 
+                                                         ifelse(grepl("[0-9]",alicuota_6),0,
+                                                                ifelse(grepl("[0-9]",alicuota_7),0,
+                                                                       ifelse(grepl("[0-9]",alicuota_8),0,
+                                                                              1)
+                                                                )
+                                                         )
+                                                  )
+                                           )
+                                    )
+                             )
+                          ), 
+         sin_descripcion=ifelse(is.na(descripcion) | (is.na(incluye) & is.na(excluye)), 1, 
+                                0), 
+         verificar=ifelse(!is.na(descripcion) & is.na(incluye) & is.na(excluye),1, 
+                          0),
+         sin_descripcion=ifelse(es_codigo==0 & sin_alicuota==1, 1, 
+                                ifelse(verificar==1, 0, sin_descripcion)
+                                ), 
+         mantener_lineas=ifelse(mergeid%in% lista_a_mantener, 1,
+                                ifelse(mergeid %in% lista_a_quitar,2,
+                                       0)
+                                )
+  )
+
+        # sin_alicuota_2=ifelse(grepl("[0-9]",across(starts_with("alicuota"))), 1,  Algún equivalente, para ver que ningún alicuota sea numérico? SEGUIR AQUI
+         #                      0),
+#         sin_alicuota=ifelse(is.na(alicuota_1) & is.na(alicuota_2)& is.na(alicuota_3)& is.na(alicuota_4)& is.na(alicuota_5)& is.na(alicuota_6)& is.na(alicuota_7)& is.na(alicuota_8)
+ #                            , 1, 0)
+  #       )
+
+
+df_codigos_2<-df_codigos%>%
+  subset(mantener_lineas!=2 & (mantener_lineas==1 | (
+        sin_descripcion==0  & (sin_alicuota==0 | (sin_alicuota==1 & es_codigo==1))
+        )))%>%
+  select(-c(mergeid,verificar,es_codigo,sin_alicuota,sin_descripcion,cuadro,concatenado))%>%
+  mutate(mergeid=row_number())
+
+lista_aduana<-c("523011","523019","523020","523031")
+df_salta_NAES_22<-lista_NAES%>%
+  mutate(mergeid=row_number())%>%
+  rename(descripcion_posta=descripcion)%>%
+  left_join(df_codigos_2)%>%
+  mutate(alicuota_6=ifelse(codigo_NAES %in% lista_aduana, 6, 
+                           alicuota_6), 
+         across(starts_with("alicuota"),~gsub("exenta","0",.x)), #Ponemos en 0 las alícuotas exentas
+         across(starts_with("alicuota"),~gsub("exento","0",.x)), #Ponemos en 0 las alícuotas exentas
+         across(starts_with("alicuota"),~gsub(",",".",.x)), #Pasamos las comas a puntos
+         across(starts_with("alicuota"),~gsub("o","",.x)), #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("O","",.x)), #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("p","",.x)), #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub('"\\*',"",.x)),#Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub('%',"",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("'","",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("Y","",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("›","",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub(" ","",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~gsub("096","0",.x)),  #Corregimos errores de OCR
+         across(starts_with("alicuota"),~as.double(.x)),
+         across(starts_with("alicuota"),~ifelse(.x<0.3, .x*100, #Alícuotas en formato
+                                                .x))
+         
+         
+       #  across(starts_with("alicuota"),~gsub("[[:punct:]]","",.x))
+         
+         #cientifico=ifelse(grepl("E",alicuota_1),1,
+          #                 ifelse(grepl("E",alicuota_2),1,
+           #                       ifelse(grepl("E",alicuota_3),1,
+            #                             ifelse(grepl("E",alicuota_4),1,
+             #                                   ifelse(grepl("E",alicuota_5),1,
+              #                                         ifelse(grepl("E",alicuota_6),1,
+               #                                               ifelse(grepl("E",alicuota_7),1,
+                #                                                     ifelse(grepl("E",alicuota_8),1,
+                 #                                                           0)
+                  #                                            )
+                   #                                    )
+                    #                            )
+                     #                    )
+                      #            )
+                       #       )
+                        # )
+         )
+
+
+
+temp<-min_max(df_salta_NAES_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+df_salta_NAES_22<-temp
+
+faltantes<-df_salta_NAES_22%>%
+  subset(is.na(max_ali))
+view(faltantes) #Completar alícuotas faltantes, SEGUIR AQUI
+  
+
+view(df_salta_NAES_22)
+df_cientifico<-df_salta_NAES_22%>%
+  subset(cientifico==1)%>%
+  mutate(alicuota_test=as.numeric(alicuota_1))
+head(df_cientifico)
+view(df_cientifico)
+view(df_salta_NAES_22)
