@@ -870,6 +870,7 @@ faltantes<-df_rio_negro_NAES_22%>%
 head(faltantes)
 
 
+rm(temp,id_rio_negro,faltantes)
 
 drive_trash("Rio_Negro_NAES_22")
 gs4_create(name="Rio_Negro_NAES_22",sheets=df_rio_negro_NAES_22)
@@ -1102,14 +1103,56 @@ df_san_juan_22<-read_sheet(ss=id_san_juan)
 names(df_san_juan_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","nota","fuente")
 
 df_san_juan_22<-formateo_alicuotas(df_san_juan_22,"alicuota",0.3)
-view(df_san_juan_22)
+
+#Agregamos tratamientos especiales (según variable nota)
+
 lista_0<-c("1","3","9","10","24","25","26","30","32","35","36")
 lista_2_3<-c("6")
 lista_2<-c("7")
-lista_1_75<-c("12",)
+lista_1_75<-c("12")
+lista_3<-c("16","19","28")
 lista_5<-c("2","10","11","40")
 
+df_san_juan_22<-df_san_juan_22%>%
+  mutate(alicuota_1=ifelse(nota %in% lista_0, 0, 
+                           ifelse(nota %in% lista_5, 5, 
+                                  ifelse(nota %in% lista_3, 3, 
+                                         ifelse(nota=="6", 2.3,
+                                                ifelse(nota=="7", 2, 
+                                                       ifelse(nota=="12", 1.75, 
+                                                              ifelse(nota=="13",0.45,
+                                                                     ifelse(nota=="23",1.5,
+                                                                            ifelse(nota=="31",12.5,
+                                                                                   alicuota)
+                                                                            )
+                                                                     )
+                                                              )
+                                                       )
+                                                )
+                                         )
+                                  )
+                           ), 
+         alicuota_2=ifelse(nota=="10", 5, 
+                           alicuota)
+       )                          
+temp<-min_max(df_san_juan_22,"alicuota","codigo_NAES")
 
-temp<-min_max(df_neuquen_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
-table(df_san_juan_22$V4)
+#Agregamos sobrealícuota de 20% por Lote Hogar
+df_san_juan_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=min_ali*1.2,
+         max_ali=max_ali*1.2)
+
+faltantes<-df_san_juan_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+
+
+drive_trash("San_Juan_NAES_22")
+gs4_create(name="San_Juan_NAES_22",sheets=df_san_juan_NAES_22)
+drive_mv(file="San_Juan_NAES_22",path=id_carpeta)
+
+rm(temp,id_san_juan,faltantes)
