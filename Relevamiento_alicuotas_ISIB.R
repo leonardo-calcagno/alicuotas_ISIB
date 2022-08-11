@@ -1058,13 +1058,58 @@ df_salta_NAES_22<-temp
 
 faltantes<-df_salta_NAES_22%>%
   subset(is.na(max_ali))
-view(faltantes) #Completar alícuotas faltantes, SEGUIR AQUI
-  
+view(faltantes)
 
-view(df_salta_NAES_22)
-df_cientifico<-df_salta_NAES_22%>%
-  subset(cientifico==1)%>%
-  mutate(alicuota_test=as.numeric(alicuota_1))
-head(df_cientifico)
-view(df_cientifico)
-view(df_salta_NAES_22)
+drive_trash("faltantes_Salta_22")
+gs4_create(name="faltantes_Salta_22",sheets=faltantes)
+drive_mv(file="faltantes_Salta_22",path=id_carpeta)  
+
+#Importamos el sheet con las alícuotas completadas
+
+id_faltantes_salta<-drive_get("faltantes_Salta_completado_22")
+faltantes_corr<-read_sheet(ss=id_faltantes_salta)
+names(faltantes_corr)<-c("codigo_NAES","alicuota_1","alicuota_2","alicuota_3","alicuota_4")
+faltantes_corr<-faltantes_corr%>%
+  mutate(cuadro="1", 
+         codigo_NAES=gsub("[^0-9.-]", "", codigo_NAES), 
+         codigo_NAES=substr(start=1,stop=6,codigo_NAES))
+faltantes_corr<-formateo_alicuotas(faltantes_corr,"alicuota",0.3)
+
+faltantes_corr<-min_max(faltantes_corr,"alicuota","codigo_NAES")
+names(faltantes_corr)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+view(faltantes_corr)
+
+faltantes_no<-df_salta_NAES_22%>%
+  subset(!is.na(max_ali))
+
+df_salta_NAES_22<- rbind(faltantes_no,faltantes_corr)%>%
+  arrange(codigo_NAES)%>%
+  distinct()
+
+drive_trash("Salta_NAES_22")
+gs4_create(name="Salta_NAES_22",sheets=df_salta_NAES_22)
+drive_mv(file="Salta_NAES_22",path=id_carpeta) 
+
+rm(temp,id_salta,id_faltantes_salta,list=ls(pattern="faltantes"))
+
+######## Cuadro NAES IIBB, San Juan------
+
+### En San Juan, el adicional Lote Hogar Ley 5287 le agrega 20% al ISIB efectivamente pagado, destinado a erradicar villas de emergencia. 
+
+id_san_juan<-drive_get("san_juan_alícuota22")
+df_san_juan_22<-read_sheet(ss=id_san_juan)
+names(df_san_juan_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","nota","fuente")
+
+df_san_juan_22<-formateo_alicuotas(df_san_juan_22,"alicuota",0.3)
+view(df_san_juan_22)
+lista_0<-c("1","3","9","10","24","25","26","30","32","35","36")
+lista_2_3<-c("6")
+lista_2<-c("7")
+lista_1_75<-c("12",)
+lista_5<-c("2","10","11","40")
+
+
+temp<-min_max(df_neuquen_22,"alicuota","codigo_NAES")
+
+table(df_san_juan_22$V4)
