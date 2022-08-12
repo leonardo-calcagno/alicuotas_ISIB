@@ -1161,6 +1161,7 @@ rm(temp,id_san_juan,faltantes)
 id_san_luis<-drive_get("san_luis_22_alicuota")
 df_san_luis_22<-read_sheet(ss=id_san_luis)
 names(df_san_luis_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+
 df_san_luis_22<-df_san_luis_22%>%
   mutate(alicuota_1=gsub("[^0-9.-]", NA, alicuota_1),
          alicuota_2=gsub("[^0-9.-]", NA, alicuota_2),
@@ -1206,7 +1207,73 @@ faltantes<-df_san_luis_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
 
+rm(temp,id_san_luis,list=ls(pattern="faltantes"))
+
 
 drive_trash("San_Luis_NAES_22")
 gs4_create(name="San_Luis_NAES_22",sheets=df_san_luis_NAES_22)
 drive_mv(file="San_Luis_NAES_22",path=id_carpeta)
+
+
+
+######## Cuadro NAES IIBB, Santa Cruz------
+
+id_santa_cruz<-drive_get("santa_cruz_alícuota22")
+df_santa_cruz_22<-read_sheet(ss=id_santa_cruz)
+names(df_santa_cruz_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","fuente")
+
+df_santa_cruz_22<-df_santa_cruz_22%>%
+  mutate(cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), #Agregamos un 0 a la izquierda del código NAES
+                   codigo_NAES)
+        )
+
+df_santa_cruz_22<-formateo_alicuotas(df_santa_cruz_22,"alicuota",0.3)
+temp<-min_max(df_santa_cruz_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+
+df_santa_cruz_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_santa_cruz_NAES_22%>%
+  subset(is.na(max_ali))%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES)) #Hay códigos NAES más generales para Santa Cruz, con sólo 5 dígitos
+
+
+temp_faltantes<-temp%>%
+  mutate(codigo_corto=substr(start=1,stop=5,codigo_NAES))%>%
+  select(-c(codigo_NAES))%>%
+  group_by(codigo_corto)%>%
+  summarise(min_ali=min(min_ali), 
+            max_ali=max(max_ali))%>%
+  ungroup()
+
+
+faltantes<-faltantes%>%
+  select(-c(min_ali,max_ali))%>%
+  left_join(temp_faltantes)%>%
+  distinct()%>%
+  select(-c(codigo_corto))
+
+df_santa_cruz_NAES_22<-df_santa_cruz_NAES_22%>%
+  subset(!is.na(max_ali))%>%
+  rbind(faltantes)%>%
+  mutate(min_ali=ifelse(codigo_NAES=="451111" | codigo_NAES=="451112", 3, 
+                        min_ali), 
+         max_ali=ifelse(codigo_NAES=="451111" | codigo_NAES=="451112", 3, 
+                        max_ali)
+         )%>%
+  arrange(codigo_NAES)
+
+faltantes<-df_santa_cruz_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+rm(id_santa_cruz,list=ls(pattern="faltantes"),temp)
+
+drive_trash("Santa_Cruz_NAES_22")
+gs4_create(name="Santa_Cruz_NAES_22",sheets=df_santa_cruz_NAES_22)
+drive_mv(file="Santa_Cruz_NAES_22",path=id_carpeta)
+
+
