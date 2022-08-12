@@ -1092,7 +1092,7 @@ drive_trash("Salta_NAES_22")
 gs4_create(name="Salta_NAES_22",sheets=df_salta_NAES_22)
 drive_mv(file="Salta_NAES_22",path=id_carpeta) 
 
-rm(temp,id_salta,id_faltantes_salta,list=ls(pattern="faltantes"))
+rm(temp,id_salta,id_faltantes_salta,list=ls(pattern="faltantes"),df_codigos,df_no_codigos,df_codigos_2)
 
 ######## Cuadro NAES IIBB, San Juan------
 
@@ -1150,9 +1150,63 @@ faltantes<-df_san_juan_NAES_22%>%
 head(faltantes)
 
 
-
 drive_trash("San_Juan_NAES_22")
 gs4_create(name="San_Juan_NAES_22",sheets=df_san_juan_NAES_22)
 drive_mv(file="San_Juan_NAES_22",path=id_carpeta)
 
 rm(temp,id_san_juan,faltantes)
+
+######## Cuadro NAES IIBB, San Luis------
+
+id_san_luis<-drive_get("san_luis_22_alicuota")
+df_san_luis_22<-read_sheet(ss=id_san_luis)
+names(df_san_luis_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+df_san_luis_22<-df_san_luis_22%>%
+  mutate(alicuota_1=gsub("[^0-9.-]", NA, alicuota_1),
+         alicuota_2=gsub("[^0-9.-]", NA, alicuota_2),
+         alicuota_3=gsub("[^0-9.-]", NA, alicuota_3),
+         codigo_NAES=gsub("[^0-9.-]", NA, codigo_NAES),
+         alicuota_1=ifelse(codigo_NAES=="477469", 4.20, 
+                           alicuota_1),
+         alicuota_2=ifelse(codigo_NAES=="477469", 3.50, 
+                           alicuota_2),
+         alicuota_3=ifelse(codigo_NAES=="477469", 2.00, 
+                           alicuota_3),
+         
+         alicuota_2=ifelse(is.na(codigo_NAES), descripcion,  #CUando la descripción estaba en dos líneas, la alícuota 1 terminó en descripción
+                           alicuota_2),
+         group_id=row_number(), 
+         group_id=ifelse(is.na(codigo_NAES) | codigo_NAES=="", group_id-1,
+                         group_id)
+         )%>%
+  group_by(group_id)%>%
+  fill(alicuota_1)%>%
+  fill(alicuota_1,.direction="up")%>%  #Hay que expandir la alícuota cuando la descripción estaba en dos líneas
+  
+  fill(alicuota_2)%>%
+  fill(alicuota_2,.direction="up")%>%  #Hay que expandir la alícuota cuando la descripción estaba en dos líneas
+  
+  fill(alicuota_3)%>%
+  fill(alicuota_3,.direction="up")%>%  #Hay que expandir la alícuota cuando la descripción estaba en dos líneas
+  ungroup()%>%
+  mutate(borrar=ifelse(is.na(alicuota_1) & is.na(alicuota_2) & is.na(alicuota_3), 1, 
+                       0)
+         )%>%
+  subset(borrar==0)
+
+
+df_san_luis_22<-formateo_alicuotas(df_san_luis_22,"alicuota",0.3)
+temp<-min_max(df_san_luis_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_san_luis_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_san_luis_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+
+drive_trash("San_Luis_NAES_22")
+gs4_create(name="San_Luis_NAES_22",sheets=df_san_luis_NAES_22)
+drive_mv(file="San_Luis_NAES_22",path=id_carpeta)
