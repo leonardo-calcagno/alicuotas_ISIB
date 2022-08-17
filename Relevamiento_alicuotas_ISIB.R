@@ -1277,3 +1277,77 @@ gs4_create(name="Santa_Cruz_NAES_22",sheets=df_santa_cruz_NAES_22)
 drive_mv(file="Santa_Cruz_NAES_22",path=id_carpeta)
 
 
+
+######## Cuadro NAES IIBB, Tierra del Fuego------
+
+
+id_tdf<-drive_get("tdf_22_alicuota")
+df_tdf_22<-read_sheet(ss=id_tdf)
+names(df_tdf_22)<-c("cuadro","codigo_NAES","descripcion","incluye","excluye","alicuota")
+#Existe una sobrealícuota de 4% sobre algunas actividades financieras, destinada al Fondo de Financiamiento para el Sistema Previsional, desde el 1/2/2016 
+lista_sistema_previsional<-c(641100,641910,641920, 641930, 641941, 641942, 641943, 642000, 643001, 643009, 649100, 649210, 649220, 649290, 649910, 649991, 649999, 651110, 
+                             651120, 651130, 651210, 651220, 651310, 652000, 653000, 661111, 661121, 661131, 661910, 661920, 661930, 661991, 661992, 661999, 662010, 662020, 
+                             662090,663000)
+
+
+df_tdf_22<-df_tdf_22%>%
+  mutate(alicuota_26_bis=ifelse(codigo_NAES=="331290", "3,5%", #Incluimos algunas alícuotas especiales detalladas en el art. 26 bis
+                                ifelse(codigo_NAES=="472200", "3%", 
+                                       ifelse(codigo_NAES=="473001", "1,5%", 
+                                              ifelse(codigo_NAES=="473002", "3,5%", 
+                                                     ifelse(codigo_NAES=="477440", "3%", 
+                                                            ifelse(codigo_NAES=="522099", "3,5%", 
+                                                                   ifelse(codigo_NAES=="920009", "15%", 
+                                                                          NA))
+                                                            )
+                                                     )
+                                              )
+                                       )
+                                ),
+         cod_num=as.integer(codigo_NAES), 
+         codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
+                            codigo_NAES), 
+         #Casi todas las actividades tienen una sobrealícuota para el Fondo de Financiamiento de Servicios Sociales, siguiendo la cateogrización siguiente:
+         alicuota_serv_soc=ifelse((cod_num>=11111 & cod_num<=24020) | cod_num==89200 | (cod_num>=131110 & cod_num<=143020) | (cod_num>=151100 & cod_num<=152031)
+                                  | (cod_num>=201110 & cod_num<=222090) | (cod_num>=261000 & cod_num<=264000) | (cod_num>=267001 & cod_num<=268000) | (cod_num>=275010 & cod_num<=279000)
+                                  | cod_num==281700 | cod_num==293090 | cod_num==352010 | cod_num==352021 | cod_num==352022 | cod_num==492130,"0%",
+                                  ifelse(cod_num==493110 | cod_num==493120 | cod_num==493200, "1%", 
+                                         ifelse((cod_num>=101011 & cod_num<=108000) | cod_num==110100 | (cod_num>=110411 & cod_num<=110492) | (cod_num>=152040 & cod_num<=192002) 
+                                                | cod_num==201140 | cod_num==201210 | (cod_num>=231010 & cod_num<=259999) | (cod_num>=265101 & cod_num<=266090) | (cod_num>=271010 & cod_num<=274000)
+                                                | (cod_num>=281100 & cod_num<=281600) | (cod_num>=281900 & cod_num<=293011) | (cod_num>=301100 & cod_num<=329099) | (cod_num>=331210 & cod_num<=331290)
+                                                | cod_num==331301 | cod_num==331400 | cod_num==382010 | cod_num==382020 | (cod_num>=581100 & cod_num<=592000) | cod_num==951200, "1,25%",
+                                                ifelse(cod_num==31110 | cod_num==31120 | cod_num==31130 | cod_num==31200 | cod_num==31300 | cod_num==32000 | cod_num==51000 | cod_num==52000 
+                                                       | (cod_num>=71000& cod_num<=89120) | cod_num==89300 | cod_num==89900, "0,5%", 
+                                                       "1,5%")
+                                                )
+                                         )
+                                ), 
+         alicuota_sist_prev=ifelse(cod_num %in% lista_sistema_previsional, "4%", "0%")
+           
+         )
+df_tdf_22<-formateo_alicuotas(df_tdf_22,"alicuota",0.2)
+df_tdf_22<-df_tdf_22%>%
+  mutate(alicuota_1=alicuota + alicuota_serv_soc + alicuota_sist_prev, 
+         alicuota_2=alicuota_26_bis + alicuota_serv_soc + alicuota_sist_prev)%>%
+  select(-c(alicuota_serv_soc,alicuota_sist_prev,alicuota,alicuota_26_bis))
+
+temp<-min_max(df_tdf_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+df_tdf_NAES_22<-lista_NAES%>%
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(codigo_NAES=="681010", 4.5, #Faltaba en ERREPAR esta actividad, le ponemos la imposición de actividades vecinas
+                        min_ali), 
+         max_ali=ifelse(codigo_NAES=="681010", 4.5, 
+                        max_ali)
+        )
+
+faltantes<-df_tdf_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+rm(id_tdf,list=ls(pattern="faltantes"),temp)
+
+drive_trash("TDF_NAES_22")
+gs4_create(name="TDF_NAES_22",sheets=df_tdf_NAES_22)
+drive_mv(file="TDF_NAES_22",path=id_carpeta)
