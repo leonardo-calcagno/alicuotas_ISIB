@@ -18,7 +18,7 @@ setwd("C:/Users/Ministerio/Documents/alicuotas_ISIB/")
 
 
 
-###Importación de las tablas de equivalencia AFIP - NAES - CUACM -------------
+###Tabla equivalencia AFIP - NAES - CUACM -------------
 if(!file.exists("Bases_externas")) {
   dir.create("Bases_externas")
 }
@@ -63,7 +63,7 @@ head(faltantes_llave)
 rm(faltantes_llave)
 
 
-########Obtener todos los cuadros de la página de alícuotas de ERREPAR ---------
+########Cuadros alícuotas ERREPAR ---------
 
 #ERREPAR tiene un código de protección: no se puede bajar nada con R. Lo que hay que hacer es: 
     #1- Abrir la página con las alícuotas en el navegador
@@ -1280,11 +1280,21 @@ df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
   mutate(ALICUOTA=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), 10, #Venta de automotores nuevos
                          ALICUOTA), 
          fuente=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), "Art. 2 Ley 7.339", 
-                       "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
-  )
+                       "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR"), 
+         borrar=ifelse( ! substr(start=1,stop=1,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1, 
+                       ifelse(! substr(start=2,stop=2,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                              ifelse(! substr(start=3,stop=3,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                                     ifelse(! substr(start=4,stop=4,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1, 
+                                           0)
+                                    )
+                              )
+                       )
+        
+       )%>%
+  subset(borrar==0)%>%
+  select(-c(borrar))%>%
+  distinct()
 rm(id_santiago_del_estero)
-
-
 
 
 ######## Cuadro NAES IIBB, Tierra del Fuego------
