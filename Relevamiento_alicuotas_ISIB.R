@@ -1090,28 +1090,50 @@ rm(temp,id_salta,id_faltantes_salta,list=ls(pattern="faltantes"),df_codigos,df_n
 id_san_juan<-drive_get("san_juan_alícuota22")
 df_san_juan_22<-read_sheet(ss=id_san_juan)
 names(df_san_juan_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","nota","fuente")
-table(df_san_juan_22$nota)
 
-
-test<-df_san_juan_22%>%
-  subset(nota=="1")
 df_san_juan_22<-formateo_alicuotas(df_san_juan_22,"alicuota",0.3)
 #Agregamos tratamientos especiales (según variable nota)
 
-lista_0<-c("1","3","9","10","24","25","26","30","32","35","36")
-lista_3<-c("16","19","28")
-lista_5<-c("2","10","11","40")
+
+#Pasamos las notas a formato numérico, y guardamos en variables separadas las posiciones con más de una nota
+df_san_juan_22<-df_san_juan_22%>%
+  mutate(varias_notas=ifelse(grepl("-",nota,fixed=TRUE), 1, 
+                             0),
+         nota=gsub(" ","",nota),
+         nota_1=ifelse(varias_notas==0, nota, 
+                       substr(start=1, stop=2, nota)
+                       ), 
+         nota_2=ifelse(varias_notas==0, NA, 
+                       substr(start=3, stop=nchar(nota), nota)
+                       ), 
+         nota_3=ifelse(nchar(nota_2)<=3, NA, 
+                       substr(start=nchar(nota_2)-2,stop=nchar(nota_2), nota_2)
+                       ),
+         nota_2=ifelse(is.na(nota_3), nota_2, 
+                       substr(start=1,stop=3,nota_2)),
+         across(starts_with("nota_"),~gsub("-","",.x)),
+         across(starts_with("nota_"),~gsub("[^0-9.-]", "", .x)), #Quitamos todos los carácteres no númericos de nota_
+         across(starts_with("nota_"),~as.integer(.x))
+         )
+#Verificamos en qué variables nota pueden estar las alícuotas. Ahí vemos que sólo tenemos que revisar dentro de nota_1 y nota_2, 
+    #porque las nota que pueden estar guardadas en nota_3 no afectan las alícuotas aplicadas.
+table(df_san_juan_22$nota_1)
+table(df_san_juan_22$nota_2)
+table(df_san_juan_22$nota_3)
+lista_0<-c(1,3,9,10,24,25,26,30,32,35,36)
+lista_3<-c(16,19,28)
+lista_5<-c(2,10,11,40)
 
 df_san_juan_22<-df_san_juan_22%>%
-  mutate(alicuota_1=ifelse(nota %in% lista_0, 0, 
-                           ifelse(nota %in% lista_5, 5, 
-                                  ifelse(nota %in% lista_3, 3, 
-                                         ifelse(nota=="6", 2.3,
-                                                ifelse(nota=="7", 2, 
-                                                       ifelse(nota=="12", 1.75, 
-                                                              ifelse(nota=="13",0.45,
-                                                                     ifelse(nota=="23",1.5,
-                                                                            ifelse(nota=="31",12.5,
+  mutate(alicuota_1=ifelse(nota_1 %in% lista_0, 0, 
+                           ifelse(nota_1 %in% lista_5, 5, 
+                                  ifelse(nota_1 %in% lista_3, 3, 
+                                         ifelse(nota_1==6, 2.3,
+                                                ifelse(nota_1==7, 2, 
+                                                       ifelse(nota_1==12, 1.75, 
+                                                              ifelse(nota_1==13,0.45,
+                                                                     ifelse(nota_1==23,1.5,
+                                                                            ifelse(nota_1==31,12.5,
                                                                                    alicuota)
                                                                             )
                                                                      )
@@ -1121,10 +1143,28 @@ df_san_juan_22<-df_san_juan_22%>%
                                          )
                                   )
                            ), 
-         alicuota_2=ifelse(nota=="10", 5, 
-                           alicuota)
-       )                        
-view(df_san_juan_22)
+         alicuota_3=ifelse(nota_1==10, 5, 
+                           alicuota), 
+         alicuota_2=ifelse(nota_2 %in% lista_0, 0, 
+                                  ifelse(nota_2 %in% lista_5, 5, 
+                                         ifelse(nota_2 %in% lista_3, 3, 
+                                                ifelse(nota_2==6, 2.3,
+                                                       ifelse(nota_2==7, 2, 
+                                                              ifelse(nota_2==12, 1.75, 
+                                                                     ifelse(nota_2==13,0.45,
+                                                                            ifelse(nota_2==23,1.5,
+                                                                                   ifelse(nota_2==31,12.5,
+                                                                                          alicuota)
+                                                                            )
+                                                                     )
+                                                              )
+                                                       )
+                                                )
+                                         )
+                                  )
+                          )
+       )
+
 temp<-min_max(df_san_juan_22,"alicuota","codigo_NAES")
 
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
@@ -1138,7 +1178,6 @@ df_san_juan_NAES_22<-lista_NAES%>%
 faltantes<-df_san_juan_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
-
 
 drive_trash("San_Juan_NAES_22")
 gs4_create(name="San_Juan_NAES_22",sheets=df_san_juan_NAES_22)
