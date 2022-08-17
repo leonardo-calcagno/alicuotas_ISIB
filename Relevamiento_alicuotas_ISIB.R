@@ -117,43 +117,9 @@ setwd("../")
 gs4_auth() #Conección a la cuenta google
 
 id_carpeta<-drive_get("Relevamiento_alicuotas")
-####Casos particulares ------------
-##Para Santiago del Estero, obtenemos un pdf de la Dirección General de Rentas, con código CUACM. 
-id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
-df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
-#Por Art. 2 de la Ley 7.339, la venta en comisión y/o directa de automotores nuevos está impuesta al 10%. Se corrige la alícuota en la
-    #tabla correspondiente
-#Para las demás posiciones, nos fiamos a la fuente informada por ERREPAR, sin entrar en más detalles.
-df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
-  mutate(ALICUOTA=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), 10, #Venta de automotores nuevos
-                         ALICUOTA), 
-         fuente=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), "Art. 2 Ley 7.339", 
-                       "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
-         )
-rm(id_santiago_del_estero)
 
 
-
-
-##Para Salta, hay dos anexos tarifarios: contribuyentes locales (anexo I) y de convenio multilateral (anexo II)
-    #Para contribuyente local, la tabla es relativamente simple y está en ERREPAR; para convenio multilateral, es un pdf de 219 
-    #páginas que ni siquiera está con texto seleccionable. Dejamos por lo tanto este anexo para una siguiente etapa
-
-df_salta_anexo1_22<-df_salta_22[,-c(2,3)]%>%  #Nivel de 1 y 2 dígitos que no nos interesan
-  subset(!(is.na(V5)&is.na(V6)&is.na(V7)&is.na(V8)&is.na(V9)&is.na(V10))) #Líneas sin alícuotas informadas
-names(df_salta_anexo1_22)<-c("cuadros","codigo_NAES","actividad","general_IVA","general_monotributo","especial","exentos","profesionales_uni","consumidor_final")
-df_salta_anexo1_22<-df_salta_anexo1_22[-1,]
-df_salta_anexo1_22<-df_salta_anexo1_22%>%
-  mutate(NAES_faltante=ifelse(substr(codigo_NAES,start=1,stop=1) %in% c("0","1","2","3","4","5","6","7","8","9"),0,
-                              ifelse(substr(codigo_NAES,start=1,stop=1)=="O", 0, #Algunos códigos empiezan con "Obs:"
-                                    1)
-                             )
-  )%>%
-  subset(NAES_faltante==0)%>%
-  select(-c(NAES_faltante))%>%
-  mutate(fuente="Anexo I Res. Gen. 16/2022 DGR Salta")
-
-##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES ------
+##### Exportamos los cuadros sacados de ERREPAR, con códigos NAES 
 
 gs4_create(name="buenos_aires_22",sheets=df_buenos_aires_22)
 drive_mv(file="buenos_aires_22",path=id_carpeta)
@@ -222,12 +188,7 @@ drive_mv(file="tdf_22",path=id_carpeta)
 gs4_create(name="tucuman_22",sheets=df_tucuman_22)
 drive_mv(file="tucuman_22",path=id_carpeta)
 
-
-
-######## Cuadro NAES IIBB, CABA------
-id_CABA<-drive_get("CABA_alícuota22")
-df_CABA_22<-read_sheet(ss=id_CABA) #Importamos cuadro modificado, con alícuota agregada
-names(df_CABA_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+###### Funciones ---------
 formateo_alicuotas<-function(input,cat_var,correc_max){
   output<-input%>%
     mutate(across(where(is.list),~ifelse(.x=="NULL", NA, #Ponemos como valores faltantes las alícuotas que tienen el valor "NULL"
@@ -242,14 +203,13 @@ formateo_alicuotas<-function(input,cat_var,correc_max){
     select(-c(es_numerica))%>%
     mutate(across(starts_with(cat_var),~as.double(.x)), #Pasamos las alícuotas a numérico
            across(starts_with(cat_var),~ifelse(.x<correc_max, .x*100, #Se importaron algunas alícuotas, en vez de 10%, como 0,1. Se corrige aquí
-                                                  .x)
+                                               .x)
            )
     )%>%
     select(-c(cuadro))%>%# No es más necesaria la información del cuadro en que estaba el nomenclador
     distinct()#Hay algunos nomencladores repetidos por error de ERREPAR; los sacamos
 } 
 
-df_CABA_22<-formateo_alicuotas(df_CABA_22,"alicuota",0.2)
 #Para la tabla comparativa, vamos a tomar siempre la alícuota más alta posible para cada actividad (en general grandes contribuyentes).
 #Se puede hacer lo mismo con la más baja posible para cada actividad.
 
@@ -262,13 +222,23 @@ min_max<-function(input,variables,id_variable){ #Valores mínimos y máximos de 
   output<-input%>%
     mutate(maximum=invoke(pmax,c(across(all_of(lista_alicuotas)),na.rm=TRUE)), #Valor máximo entre las variables que empiecen con "alicuota"
            minimum=invoke(pmin,c(across(all_of(lista_alicuotas)),na.rm=TRUE))#Valor máximo entre las variables que empiecen con "alicuota"
-          )%>%
+    )%>%
     group_by(get(id_variable))%>%
     summarise(min_name=min(minimum),
               max_name=max(maximum)
-              )%>%
+    )%>%
     ungroup()
 }
+
+
+
+######## Cuadro NAES IIBB, CABA------
+id_CABA<-drive_get("CABA_alícuota22")
+df_CABA_22<-read_sheet(ss=id_CABA) #Importamos cuadro modificado, con alícuota agregada
+names(df_CABA_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+
+df_CABA_22<-formateo_alicuotas(df_CABA_22,"alicuota",0.2)
+
 
 temp<-min_max(df_CABA_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
@@ -880,6 +850,25 @@ drive_mv(file="Rio_Negro_NAES_22",path=id_carpeta)
 ######## Cuadro NAES IIBB, Salta------
 
 
+##Para Salta, hay dos anexos tarifarios: contribuyentes locales (anexo I) y de convenio multilateral (anexo II)
+#Para contribuyente local, la tabla es relativamente simple y está en ERREPAR; para convenio multilateral, es un pdf de 219 
+#páginas que ni siquiera está con texto seleccionable. Dejamos por lo tanto este anexo para una siguiente etapa
+
+df_salta_anexo1_22<-df_salta_22[,-c(2,3)]%>%  #Nivel de 1 y 2 dígitos que no nos interesan
+  subset(!(is.na(V5)&is.na(V6)&is.na(V7)&is.na(V8)&is.na(V9)&is.na(V10))) #Líneas sin alícuotas informadas
+names(df_salta_anexo1_22)<-c("cuadros","codigo_NAES","actividad","general_IVA","general_monotributo","especial","exentos","profesionales_uni","consumidor_final")
+df_salta_anexo1_22<-df_salta_anexo1_22[-1,]
+df_salta_anexo1_22<-df_salta_anexo1_22%>%
+  mutate(NAES_faltante=ifelse(substr(codigo_NAES,start=1,stop=1) %in% c("0","1","2","3","4","5","6","7","8","9"),0,
+                              ifelse(substr(codigo_NAES,start=1,stop=1)=="O", 0, #Algunos códigos empiezan con "Obs:"
+                                     1)
+  )
+  )%>%
+  subset(NAES_faltante==0)%>%
+  select(-c(NAES_faltante))%>%
+  mutate(fuente="Anexo I Res. Gen. 16/2022 DGR Salta")
+
+
 ###Las alícuotas para contribuyentes de convenio multilateral están en un pdf, que pasamos a excel con ilovepdf
 
 read_excel_allsheets <- function(filename, tibble = FALSE) { #Función tomada de https://stackoverflow.com/questions/12945687/read-all-worksheets-in-an-excel-workbook-into-an-r-list-with-data-frames
@@ -1275,6 +1264,26 @@ rm(id_santa_cruz,list=ls(pattern="faltantes"),temp)
 drive_trash("Santa_Cruz_NAES_22")
 gs4_create(name="Santa_Cruz_NAES_22",sheets=df_santa_cruz_NAES_22)
 drive_mv(file="Santa_Cruz_NAES_22",path=id_carpeta)
+
+
+
+
+
+#### Cuadro NAES IIBB. Santiago del Estero ------------
+##Para Santiago del Estero, obtenemos un pdf de la Dirección General de Rentas, con código CUACM. 
+id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
+df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
+#Por Art. 2 de la Ley 7.339, la venta en comisión y/o directa de automotores nuevos está impuesta al 10%. Se corrige la alícuota en la
+#tabla correspondiente
+#Para las demás posiciones, nos fiamos a la fuente informada por ERREPAR, sin entrar en más detalles.
+df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
+  mutate(ALICUOTA=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), 10, #Venta de automotores nuevos
+                         ALICUOTA), 
+         fuente=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), "Art. 2 Ley 7.339", 
+                       "Leyes 6.793, 7.051, 7.160, 7,241, 7,249 y 7.271, siguiendo ERREPAR") 
+  )
+rm(id_santiago_del_estero)
+
 
 
 
