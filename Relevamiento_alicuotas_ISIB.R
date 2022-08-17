@@ -1313,9 +1313,12 @@ drive_mv(file="Santa_Cruz_NAES_22",path=id_carpeta)
 ##Para Santiago del Estero, obtenemos un pdf de la Dirección General de Rentas, con código CUACM. 
 id_santiago_del_estero<-drive_get("Santiago_del_Estero_2022")
 df_santiago_del_estero_22<-read_sheet(ss=id_santiago_del_estero)
+
 #Por Art. 2 de la Ley 7.339, la venta en comisión y/o directa de automotores nuevos está impuesta al 10%. Se corrige la alícuota en la
 #tabla correspondiente
 #Para las demás posiciones, nos fiamos a la fuente informada por ERREPAR, sin entrar en más detalles.
+#Estas posiciones son sólo válidas para contribuyentes locales (es el Código Único de Actividad de Santiago del Estero). 
+    #Las alícuotas para los de convenio son por lo tanto interpretativas (no hay cuadro oficial)
 df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
   mutate(ALICUOTA=ifelse(CODIGO %in% c("501111","501112","501191","501192","501295"), 10, #Venta de automotores nuevos
                          ALICUOTA), 
@@ -1324,16 +1327,18 @@ df_santiago_del_estero_22<-df_santiago_del_estero_22%>%
          borrar=ifelse( ! substr(start=1,stop=1,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1, 
                        ifelse(! substr(start=2,stop=2,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
                               ifelse(! substr(start=3,stop=3,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
-                                     ifelse(! substr(start=4,stop=4,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1, 
-                                           0)
+                                     ifelse(! substr(start=4,stop=4,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                                            ifelse(! substr(start=5,stop=5,CODIGO) %in% c("0","1","2","3","4","5","6","7","8","9"), 1,
+                                                  0)
+                                           )
                                     )
                               )
-                       )
-        
+                       ), 
+        CODIGO=as.integer(CODIGO)
        )%>%
   subset(borrar==0)%>%
-  select(-c(borrar))%>%
-  distinct()
+  select(-c(borrar))
+  
 rm(id_santiago_del_estero)
 
 
