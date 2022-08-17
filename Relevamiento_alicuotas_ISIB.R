@@ -1090,15 +1090,15 @@ rm(temp,id_salta,id_faltantes_salta,list=ls(pattern="faltantes"),df_codigos,df_n
 id_san_juan<-drive_get("san_juan_alícuota22")
 df_san_juan_22<-read_sheet(ss=id_san_juan)
 names(df_san_juan_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","nota","fuente")
+table(df_san_juan_22$nota)
 
+
+test<-df_san_juan_22%>%
+  subset(nota=="1")
 df_san_juan_22<-formateo_alicuotas(df_san_juan_22,"alicuota",0.3)
-
 #Agregamos tratamientos especiales (según variable nota)
 
 lista_0<-c("1","3","9","10","24","25","26","30","32","35","36")
-lista_2_3<-c("6")
-lista_2<-c("7")
-lista_1_75<-c("12")
 lista_3<-c("16","19","28")
 lista_5<-c("2","10","11","40")
 
@@ -1123,7 +1123,8 @@ df_san_juan_22<-df_san_juan_22%>%
                            ), 
          alicuota_2=ifelse(nota=="10", 5, 
                            alicuota)
-       )                          
+       )                        
+view(df_san_juan_22)
 temp<-min_max(df_san_juan_22,"alicuota","codigo_NAES")
 
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
