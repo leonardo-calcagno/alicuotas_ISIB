@@ -270,13 +270,12 @@ df_CABA_NAES_22<-lista_NAES%>%
                               )
                         )
          )
-head(df_CABA_NAES_22)
 
 faltantes<-df_CABA_NAES_22%>%
   subset(is.na(max_ali))
 head(faltantes)
 
-rm(faltantes,temp,id_CABA)
+rm(faltantes,temp,id_CABA,lista_exentos_probable)
 
 drive_trash("CABA_NAES_22")
 gs4_create(name="CABA_NAES_22",sheets=df_CABA_NAES_22)
@@ -342,6 +341,59 @@ rm(faltantes,temp,temp_faltantes,id_buenos_aires)
 drive_trash("Buenos_Aires_NAES_22")
 gs4_create(name="Buenos_Aires_NAES_22",sheets=df_buenos_aires_NAES_22)
 drive_mv(file="Buenos_Aires_NAES_22",path=id_carpeta)
+
+
+######## Cuadro NAES IIBB, Catamarca------
+
+id_CAT<-drive_get("catamarca_alícuota22")
+
+df_CAT_22<-read_sheet(ss=id_CAT) #Importamos cuadro modificado, con alícuota agregada
+##Hay 1111 filas hay 116 que pueden ser NAES repetidos o texto
+
+names(df_CAT_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3","fuente")
+df_CAT_22<-formateo_alicuotas(df_CAT_22,"alicuota",0.2)
+
+#Nota: Quedan 1002 filas con NAES repetidos
+
+temp<-min_max(df_CAT_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
+
+##se corrigen los NAES que tienen 0
+
+temp<-temp%>%
+  mutate(codigo_NAES=gsub("\\(1\\)","", codigo_NAES),#quitamos (1)
+         cod_num=as.integer(codigo_NAES),
+         codigo_NAES=ifelse(cod_num<1e5,paste0("0",cod_num),
+                            codigo_NAES)
+  )  
+
+#Se une la base de datos de lista NAES con Min y MAx de la Ley Tarifaria
+df_catamarca_NAES_22<-lista_NAES%>%
+  left_join(temp)%>% #Incluimos dos faltantes, que estaban sobre dos líneas en el cuadro ERREPAR
+  mutate(min_ali=ifelse(codigo_NAES=="99000", 3, 
+                        ifelse(codigo_NAES=="949930", 2.5, 
+                               min_ali)
+                        ), 
+         max_ali=ifelse(codigo_NAES=="99000", 4.8, 
+                        ifelse(codigo_NAES=="949930", 4, 
+                               min_ali)
+                       )
+         )
+  
+faltantes<-df_catamarca_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+
+#Remueve la lista de faltantes en las bases 
+rm(faltantes,temp,df_CAT_22)
+
+drive_trash("Catamarca_NAES_22")
+gs4_create(name="Catamarca_NAES_22",sheets=df_catamarca_NAES_22)
+drive_mv(file="Catamarca_NAES_22",path=id_carpeta)
+
+
+
 
 
 ######## Cuadro NAES IIBB, Chubut------
