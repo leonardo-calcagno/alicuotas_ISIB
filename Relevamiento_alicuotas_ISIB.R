@@ -420,12 +420,18 @@ temp<-min_max(df_chubut_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
 df_chubut_NAES_22<-lista_NAES%>%
-  left_join(temp)
-head(df_chubut_NAES_22)
+  left_join(temp)%>% #Los faltantes corresponden a servicios deportivos, les aplicamos la alícuota de 5% correspondiente
+  mutate(min_ali=ifelse(is.na(min_ali), 5, 
+                        min_ali), 
+         max_ali=ifelse(is.na(max_ali), 5, 
+                        max_ali)
+  )
+
+  
 
 faltantes<-df_chubut_NAES_22%>%
   subset(is.na(max_ali))
-view(faltantes)
+head(faltantes)
 
 rm(temp,id_chubut,faltantes)
 
