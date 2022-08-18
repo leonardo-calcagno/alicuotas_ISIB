@@ -325,16 +325,23 @@ faltantes<-faltantes%>%
   select(-c(min_ali,max_ali))%>%
   left_join(temp_faltantes)%>%
   distinct()%>%
-  select(-c(codigo_corto))
+  select(-c(codigo_corto))%>% #Los faltantes corresponden a actividades probablemente exentas, en todo caso no mencionadas en la ley tarifaria. 
+  mutate(min_ali=ifelse(is.na(min_ali), 0, 
+                        min_ali), 
+         max_ali=ifelse(is.na(max_ali), 0, 
+                        max_ali)
+         )
 
 df_buenos_aires_NAES_22<-df_buenos_aires_NAES_22%>%
   subset(!is.na(max_ali))%>%
   rbind(faltantes)%>%
   arrange(codigo_NAES)
 
+
 faltantes<-df_buenos_aires_NAES_22%>%
   subset(is.na(max_ali))
-head(faltantes)
+head(faltantes) #Los faltantes corresponden a actividades probablemente exentas, en todo caso no mencionadas en la ley tarifaria. 
+
          
 rm(faltantes,temp,temp_faltantes,id_buenos_aires)
 
