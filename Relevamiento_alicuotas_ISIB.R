@@ -243,8 +243,33 @@ df_CABA_22<-formateo_alicuotas(df_CABA_22,"alicuota",0.2)
 temp<-min_max(df_CABA_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
+#Hay 18 códigos faltantes, no mencionados en la normativa de CABA. Interpretamos según la ley tarifaria qué alícuotas mínima y máxima tienen.
+lista_exentos_probable<-c("841100","841200","841300","842100","842200","842300","842400","842500","843000","990000")
+
+
 df_CABA_NAES_22<-lista_NAES%>%
-  left_join(temp)
+  left_join(temp)%>%
+  mutate(min_ali=ifelse(codigo_NAES=="370000",3, 
+                        ifelse(codigo_NAES=="651310" | codigo_NAES=="651320", 3, #Art. 10, ley tarifaria 2022, servicios sociales y de salud
+                               ifelse(codigo_NAES=="661930" | codigo_NAES=="661992", 5.5, #Alícuota nomencladores adyacentes
+                                      ifelse(codigo_NAES %in% lista_exentos_probable, 0, 
+                                             ifelse(codigo_NAES=="949100" | codigo_NAES=="949200" | codigo_NAES=="851010", 3,
+                                                    min_ali)#Servicios de organizaciones políticas o religiosas, guarderías
+                                             )
+                                      )
+                               )
+                        ),
+         max_ali=ifelse(codigo_NAES=="370000", 5, 
+                        ifelse(codigo_NAES=="651310" | codigo_NAES=="651320", 4.75, 
+                               ifelse(codigo_NAES=="661930" | codigo_NAES=="661992", 5.5, 
+                                      ifelse(codigo_NAES %in% lista_exentos_probable, 0,
+                                             ifelse(codigo_NAES=="949100" | codigo_NAES=="949200"| codigo_NAES=="851010", 5, 
+                                                    max_ali)
+                                             )
+                                     )
+                              )
+                        )
+         )
 head(df_CABA_NAES_22)
 
 faltantes<-df_CABA_NAES_22%>%
