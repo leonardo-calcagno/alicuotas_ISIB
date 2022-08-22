@@ -397,11 +397,72 @@ rm(faltantes,temp,df_CAT_22)
 
 drive_trash("Catamarca_NAES_22")
 gs4_create(name="Catamarca_NAES_22",sheets=df_catamarca_NAES_22)
-drive_mv(file="Catamarca_NAES_22",path=id_carpeta)
 
 
+######## Cuadro NAES IIBB, Chaco------
+
+id_chaco<-drive_get("chaco_22")
+df_chaco_22<-read_sheet(ss=id_chaco) #Importamos cuadro modificado, con alícuota agregada
+names(df_chaco_22)<-c("cuadro","codigo_NAES","descripcion","alicuota","codigo_RG","descripcion_RG")
+view(df_chaco_22)
+
+df_chaco_22<-df_chaco_22%>%
+  subset(cuadro=="3")%>%
+  mutate(primer_digito=substr(start=1,stop=1,codigo_NAES), 
+         es_numerica=ifelse(grepl("[0-9]",primer_digito), 1, #Verifica que el primer dígito es una cifra
+                            0)
+         )%>%
+  subset(es_numerica==1)%>%
+  select(-c(primer_digito,es_numerica))%>%
+  mutate(mergeid=row_number(),
+         correr_a_derecha=ifelse(is.na(descripcion_RG), TRUE, 
+                                 FALSE),
+         descripcion_RG=ifelse(correr_a_derecha, alicuota, #Se corre para la derecha cuando hay más de una línea por código NAES
+                               descripcion_RG),
+         codigo_RG=ifelse(correr_a_derecha, descripcion, 
+                          codigo_RG), 
+         alicuota=ifelse(correr_a_derecha, codigo_NAES, 
+                         alicuota), 
+         descripcion=ifelse(correr_a_derecha, NA, 
+                            descripcion), 
+         codigo_NAES=ifelse(correr_a_derecha, NA, 
+                            codigo_NAES), 
+         mergeid=ifelse(correr_a_derecha, mergeid-1, 
+                        mergeid)
+         )%>%
+  group_by(mergeid)%>%
+  fill(codigo_NAES)%>%
+  fill(codigo_NAES,.direction="up")%>%  #Hay que expandir el código NAES a tratamientos en que no estaba incluido
+  ungroup()%>%
+  mutate(cod_num=as.integer(codigo_NAES),
+         codigo_NAES=ifelse(cod_num<100000,paste0("0",cod_num),
+                   codigo_NAES),
+         #Se aplica la alícuota general de 3,5% para la producción de bienes primarios o industriales en caso de venta a consumidores no finales
+         alicuota_dif=ifelse(cod_num<100000 & alicuota=="0,75", "3,5", 
+                           ifelse(cod_num>=100000 & cod_num<=329099 & alicuota=="0,00", "3,5", 
+                                  NA)
+                           )
+        )
+df_chaco_22<-formateo_alicuotas(df_chaco_22,"alicuota",0.2)
+
+temp<-min_max(df_chaco_22,"alicuota","codigo_NAES")
+names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
 
+#Se une la base de datos de lista NAES con Min y MAx de la Ley Tarifaria
+df_chaco_NAES_22<-lista_NAES%>%
+  left_join(temp)
+
+faltantes<-df_chaco_NAES_22%>%
+  subset(is.na(max_ali))
+head(faltantes)
+
+#Remueve la lista de faltantes en las bases 
+rm(faltantes,temp)
+
+drive_trash("Chaco_NAES_22")
+gs4_create(name="Chaco_NAES_22",sheets=df_chaco_NAES_22)
+drive_mv(file="Chaco_NAES_22",path=id_carpeta)
 
 ######## Cuadro NAES IIBB, Chubut------
 
