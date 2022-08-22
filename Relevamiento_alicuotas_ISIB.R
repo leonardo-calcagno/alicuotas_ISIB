@@ -500,43 +500,107 @@ drive_trash("Chubut_NAES_22")
 gs4_create(name="Chubut_NAES_22",sheets=df_chubut_NAES_22)
 drive_mv(file="Chubut_NAES_22",path=id_carpeta)
 
+       
 ######## Cuadro NAES IIBB, Córdoba------
 id_cordoba<-drive_get("cordoba_alícuota22")
 df_cordoba_22<-read_sheet(ss=id_cordoba)
 names(df_cordoba_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_1","alicuota_2","alicuota_3")
+view(df_cordoba_22)
+
 df_cordoba_22<-df_cordoba_22%>%
-  mutate(codigo_NAES=gsub("\\(3\\)","",codigo_NAES), #Quitamos  (3)
-         codigo_NAES=gsub("\\(4\\)","",codigo_NAES), #Quitamos (4))
-         codigo_NAES=gsub("\\(5\\)","",codigo_NAES), #Quitamos (5))
-         codigo_NAES=gsub("\\(6\\)","",codigo_NAES), #Quitamos (6))
-         codigo_NAES=gsub("\\(7\\)","",codigo_NAES), #Quitamos (7))
-         codigo_NAES=gsub("\\(8\\)","",codigo_NAES), #Quitamos (8))
-         codigo_NAES=gsub("\\(9\\)","",codigo_NAES), #Quitamos (9))
-         codigo_NAES=gsub("\\(10\\)","",codigo_NAES), #Quitamos (10))
-         codigo_NAES=gsub("\\(11\\)","",codigo_NAES), #Quitamos (11))
-         codigo_NAES=gsub("\\(12\\)","",codigo_NAES), #Quitamos (12))
-         codigo_NAES=gsub("\\(13\\)","",codigo_NAES), #Quitamos (13))
-         codigo_NAES=gsub("\\(14\\)","",codigo_NAES), #Quitamos (14))
-         codigo_NAES=gsub("\\(15\\)","",codigo_NAES), #Quitamos (15))
-         codigo_NAES=gsub("\\(16\\)","",codigo_NAES), #Quitamos (16))
-         codigo_NAES=gsub("\\(17\\)","",codigo_NAES), #Quitamos (17))
-         codigo_NAES=gsub("\\(18\\)","",codigo_NAES), #Quitamos (18))
-         codigo_NAES=gsub("\\(19\\)","",codigo_NAES), #Quitamos (19))
-         codigo_NAES=gsub("\\(20\\)","",codigo_NAES), #Quitamos (20))
-         codigo_NAES=gsub("\\(21\\)","",codigo_NAES), #Quitamos (21))
-         codigo_NAES=gsub("\\(22\\)","",codigo_NAES), #Quitamos (22))
-         codigo_NAES=gsub("\\(23\\)","",codigo_NAES), #Quitamos (23))
-         cod_num=as.integer(codigo_NAES), 
+  mutate(codigo_NAES=gsub(" ","",codigo_NAES), #Quitamos los espacios
+         nota=codigo_NAES,
+         codigo_NAES_2=ifelse(is.na(codigo_NAES), NA, 
+                              gsub("[^0-9.-]", "919", codigo_NAES)
+                              ), #Reemplazamos las paréntesis por 919
+         codigo_NAES=gsub("[^0-9.-]", "", codigo_NAES), #Quitamos las paréntesis
+         cod_num=as.double(codigo_NAES),
+         cod_num_2=as.double(codigo_NAES_2), #Como queda muy grande, hay que usar as.double, no as.integer
+         tiene_nota=ifelse(cod_num_2>1000000 & cod_num<1000000, 1, #Se concatenaron en los cuadros de las notas algunos códigos NAES 
+                           0),
          codigo_NAES=ifelse(cod_num<100000, paste0("0",cod_num), 
-                            codigo_NAES), 
+                            codigo_NAES),
+         codigo_NAES=ifelse(cod_num<10000000000, substr(start=1,stop=6,codigo_NAES), #No tocamos los códigos NAES concatenados
+                            ifelse(descripcion=="Servicios de informática n.c.p.", "620900", 
+                                   codigo_NAES)
+                           ),
          codigo_NAES=ifelse(descripcion=="Perforación de pozos de agua", "422100", 
                             codigo_NAES), 
          codigo_NAES=ifelse(descripcion=="Construcción, reforma y reparación de redes distribución de electricidad, gas, agua, telecomunicaciones y de otros servicios públicos", "422200", 
                             codigo_NAES),
          codigo_NAES=ifelse(descripcion=="Servicios inmobiliarios realizados por cuenta propia, con bienes urbanos propios o arrendados n.c.p.", "681098", 
-                            codigo_NAES)
+                            codigo_NAES),
+         
+         nota=substr(start=7,stop=nchar(codigo_NAES_2),codigo_NAES_2), #Los carácteres desde la séptima posición son notas
+         nota=gsub("919","-",nota),
+         nota=ifelse(grepl("-",nota,fixed=TRUE), nota, #Sacamos los que quedaron como nota pero no son
+                     NA), 
+         alicuota_nota=ifelse(grepl("-16-",nota,fixed=TRUE), "3%", #Algunas notas ponen una alícuota alternativa
+                              ifelse(grepl("-23-",nota,fixed=TRUE), "1%", 
+                                     ifelse(grepl("-13-",nota,fixed=TRUE), "1,5%", 
+                                            ifelse(grepl("-12-",nota,fixed=TRUE), "3%", #Algunas notas tienen más de una alícuota posible
+                                                   NA)
+                                            )
+                                     )
+                              ), 
+         alicuota_nota_2=ifelse(grepl("-13",nota,fixed=TRUE), "2,5%", 
+                                ifelse(grepl("-12-",nota,fixed=TRUE), "7%", 
+                                       NA)
+                                ),
+         alicuota_nota_3=ifelse(grepl("-12",nota,fixed=TRUE), "5,5%", 
+                                       NA),
+         alicuota_nota_4=ifelse(grepl("-12",nota,fixed=TRUE), "6,5%", 
+                                NA),
+         alicuota_nota_5=ifelse(grepl("-12",nota,fixed=TRUE), "4,75%", 
+                                NA),
+         alicuota_nota_6=ifelse(grepl("-12",nota,fixed=TRUE), "6%", 
+                                NA)
          )%>%
-  select(-c(cod_num))
+           select(-c(cod_num,cod_num_2,codigo_NAES_2))
+
+
+codigos_largos<-df_cordoba_22%>%
+  mutate(cod_num=as.double(codigo_NAES))%>%
+  subset(cod_num>1000000)%>%
+  mutate(codigo_1=substr(start=1,stop=6,codigo_NAES), #Hay hasta 6 códigos NAES concatenados: los separamos
+         codigo_2=substr(start=7,stop=12,codigo_NAES),
+         codigo_3=substr(start=13,stop=18,codigo_NAES),
+         codigo_4=substr(start=19,stop=24,codigo_NAES),
+         codigo_5=substr(start=25,stop=30,codigo_NAES),
+         codigo_6=substr(start=31,stop=36,codigo_NAES)
+         )%>%
+  rename(alicuota_4=alicuota_1, #Son alícuotas potencialmente distintas a las que aparecen el cuadro general
+         alicuota_5=alicuota_2,
+         alicuota_6=alicuota_3)
+
+codigos_largos_1<-codigos_largos%>%
+  select(c(codigo_1,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_1)
+
+codigos_largos_2<-codigos_largos%>%
+  select(c(codigo_2,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_2)
+
+codigos_largos_3<-codigos_largos%>%
+  select(c(codigo_3,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_3)
+
+codigos_largos_4<-codigos_largos%>%
+  select(c(codigo_4,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_4)
+
+codigos_largos_5<-codigos_largos%>%
+  select(c(codigo_5,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_5)
+
+codigos_largos_6<-codigos_largos%>%
+  select(c(codigo_6,alicuota_4,alicuota_5,alicuota_6))%>%
+  rename(codigo_NAES=codigo_6)
+
+codigos_largos<-rbind(codigos_largos_1,codigos_largos_2,codigos_largos_3,codigos_largos_4,codigos_largos_5,codigos_largos_6)
+#Obtenemos, para cada código NAES que estaba concatenado, todas las alícuotas potenciales que puede tener por nota
+df_cordoba_22<-df_cordoba_22%>%
+  left_join(codigos_largos)
 
 df_cordoba_22<-formateo_alicuotas(df_cordoba_22,"alicuota",0.2)
 temp<-min_max(df_cordoba_22,"alicuota","codigo_NAES")
@@ -551,7 +615,7 @@ head(df_cordoba_NAES_22)
 
 faltantes<-df_cordoba_NAES_22%>%
   subset(is.na(max_ali))
-view(faltantes)
+head(faltantes)
 
 rm(temp,id_cordoba,faltantes)
 
