@@ -864,8 +864,28 @@ df_la_pampa_22<-formateo_alicuotas(df_la_pampa_22,"alicuota",0.2)
 temp<-min_max(df_la_pampa_22,"alicuota","codigo_NAES")
 names(temp)<-c("codigo_NAES","min_ali","max_ali") #No logramos poner nombres correctos en la función, así que los corregimos aquí afuera
 
+faltantes_libros<-c("464211","464212","476111","476112","476121","476122","477820") #4,1%
+#faltantes_edicion_radio_domestico<-c("581100","581300","601000","602100","970000") #3%
+faltantes_combustible<-c("466111","466122") #4,1%, intermediación en la venta de combustibles
+faltantes_administracion<-c("841100","841200","841300","841900","842100","842200","842300","842400","843000","990000") #0%
+
 df_la_pampa_NAES_22<-lista_NAES%>%
-  left_join(temp)
+  left_join(temp)%>% #Hay códigos NAES que no son mencionados, pero por descripción se interpreta que pueden aplicarse alícuotas vecinas. 
+  mutate(min_ali=ifelse(codigo_NAES %in% faltantes_libros | codigo_NAES %in% faltantes_combustible, 4.1, 
+                        #ifelse(codigo_NAES %in% faltantes_edicion_radio_domestico, 3, 
+                               ifelse(codigo_NAES %in% faltantes_administracion, 0, 
+                                      min_ali)
+                               #)
+                        ), 
+         max_ali=ifelse(codigo_NAES %in% faltantes_libros | codigo_NAES %in% faltantes_combustible, 5.33, 
+                        #ifelse(codigo_NAES %in% faltantes_edicion_radio_domestico, 3, 
+                               ifelse(codigo_NAES %in% faltantes_administracion, 0, 
+                                      max_ali)
+                      #        )
+                      )
+         )
+
+
 
 faltantes<-df_la_pampa_NAES_22%>%
   subset(is.na(max_ali))
