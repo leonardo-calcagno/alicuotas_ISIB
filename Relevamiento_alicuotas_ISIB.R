@@ -651,7 +651,7 @@ df_corrientes_NAES_22<-lista_NAES%>%
 
 faltantes<-df_corrientes_NAES_22%>%
   subset(is.na(max_ali))
-view(faltantes)
+head(faltantes)
 
 rm(temp,id_corrientes,faltantes)
 
@@ -665,11 +665,75 @@ drive_mv(file="Corrientes_NAES_22",path=id_carpeta)
 
 id_entre_rios<-drive_get("entre_rios_22_alicuota")
 df_entre_rios_22<-read_sheet(ss=id_entre_rios)
-df_entre_rios_22<-df_entre_rios_22[,c(1,2,3,12,13,14,15)] #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
-names(df_entre_rios_22)<-c("cuadro","codigo_NAES","descripcion","alicuota_micro","alicuota_med1","alicuota_med2","alicuota_grande")
+
+names(df_entre_rios_22)<-c("cuadro","codigo_NAES","descripcion","observaciones","nota_1","nota_2","nota_3","nota_4","nota_5","nota_6","nota_7", "alicuota_micro","alicuota_med1","alicuota_med2","alicuota_grande")
+df_entre_rios_22<-df_entre_rios_22%>%
+  subset(cuadro==4 & observaciones!="Observación")%>%  #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
+  mutate(notas=paste0(nota_1,nota_2,nota_3,nota_4,nota_5,nota_6,nota_7)
+         )%>%
+         select(-c(nota_1,nota_2,nota_3,nota_4,nota_5,nota_6,nota_7,observaciones))
+#df_entre_rios_22<-df_entre_rios_22[,c(1,2,3,12,13,14,15)] #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
+
+
+nota_1<-df_entre_rios_22%>%
+  subset(grepl(pattern="1",notas,fixed=TRUE))%>% #Los que tienen nota (1) se los trata como sector comercio si venden a consumidor final. 
+                                                  #Les atribuimos por lo tanto las alícuotas de venta al por menor en supermercados.
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_micro_n1="4%", 
+         alicuota_med_n1="4,5%",
+         alicuota_grande_n1="5%"
+         )
+
+nota_2<-df_entre_rios_22%>%
+  subset(grepl(pattern="2",notas,fixed=TRUE))%>% #Los que tienen nota (2) tienen una reducción de 0,5% por buen pagador
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_micro_n2="3,5%", 
+         alicuota_med_n2="4%",
+         alicuota_grande_n2="4,5%"
+  )
+
+nota_3<-df_entre_rios_22%>%
+  subset(grepl(pattern="3",notas,fixed=TRUE))%>% #Los que tienen nota (3) tienen alícuota de 2,6% cuando se venden a productores del sector primario
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_n3="2,6%"
+        )
+
+
+nota_4<-df_entre_rios_22%>%
+  subset(grepl(pattern="4",notas,fixed=TRUE))%>% #Los que tienen nota (4) pueden tener alícuota reducida, pero está mal la resolución: no queda claro si de 1,5% o 3,5%. Ponemos ambas. 
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_n4="1,5%", 
+         alicuota_bis_n4="3,5%"
+  )
+
+nota_5<-df_entre_rios_22%>%
+  subset(grepl(pattern="5",notas,fixed=TRUE))%>% #Los que tienen nota (5) pueden tener alícuota reducida de 3%
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_n5="3%"
+  )
+
+nota_6<-df_entre_rios_22%>%
+  subset(grepl(pattern="6",notas,fixed=TRUE))%>% #Los que tienen nota (6) pueden tener alícuota reducida de 3,5%
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_n6="3,5%"
+  )
+
+nota_7<-df_entre_rios_22%>%
+  subset(grepl(pattern="7",notas,fixed=TRUE))%>% #Los que tienen nota (7) pueden tener alícuota reducida de 3,5%
+  select(c(codigo_NAES))%>%
+  mutate(alicuota_n7="0,25%"
+  )
 
 df_entre_rios_22<-df_entre_rios_22%>%
-  subset(cuadro!=5)  #No tomamos en cuenta el anexo II, nomenclador NAES-ATER
+  left_join(nota_1)%>%
+  left_join(nota_2)%>%
+  left_join(nota_3)%>%
+  left_join(nota_4)%>%
+  left_join(nota_5)%>%
+  left_join(nota_6)%>%
+  left_join(nota_7)
+
+view(df_entre_rios_22)
 
 df_entre_rios_22<-formateo_alicuotas(df_entre_rios_22,"alicuota",0.2)
 temp<-min_max(df_entre_rios_22,"alicuota","codigo_NAES")
